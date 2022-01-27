@@ -61,7 +61,7 @@ class Config:
 		self.contrastestimate_use_derivs = True
 		self.level1design_microtime_onset = 1
 		self.level1design_microtime_resolution = 16
-		self.level1design_model_serial_correlations = 'AR(1)'
+		self.level1design_model_serial_correlations = 'FAST'
 
 		bin_dir = os.path.dirname(os.path.realpath(__file__))
 		data_dir = os.environ.get("SUPPORT_DATA_DIR",bin_dir+"/../data")
@@ -203,6 +203,7 @@ def load_design_matrix(mat_file,trim=0):
 				else:
 					pmod.append(None)
 			bunch.pmod = pmod
+		print(bunch)
 		bunches.append(bunch)
 	return bunches
 
@@ -228,7 +229,6 @@ def create_design_matrix(matlab_function, eprime_file, sequence):
         
 	#Check encoding of eprime_file
 	#If UTF-16 encoding, then change it to ASCII (MATLAB-2015 cannot read UTF-16 encoding)
-	print("ERROR: " +eprime_file)
 	with open(eprime_file, 'r') as f:
 		contents = f.read()
 		firstline_f = list(contents)[1]  #only need the first line to determine encoding

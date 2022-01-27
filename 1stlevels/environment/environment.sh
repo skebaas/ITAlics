@@ -11,9 +11,9 @@ export PATH=$FSLDIR/bin:$PATH
 
 export FSL_DIR=$FSLDIR
 
-export PATH=$PATH:/usr/local/software/gold/afni/bin
-export topdir=/usr/local/software/gold
+export PATH=$PATH:/usr/local/software/ITAlics/afni/bin
+export topdir=/usr/local/software/ITAlics
 
 export PATH=$PATH:$topdir/bin
+export MATLABPATH=$topdir/matlab/defults:$topdir/matlab/embarc-2.0:$topdir/matlab/PPPI:$topdir/matlab/spm8
 
-export MATLABPATH=/usr/local/software/gold/matlab/defults:/usr/local/software/gold/matlab/embarc-1.0:/usr/local/software/gold/matlab/embarc-2.0:/usr/local/software/gold/matlab/ExploreDTI:/usr/local/software/gold/matlab/nifti:/usr/local/software/gold/matlab/PPPI:/usr/local/software/gold/matlab/scripts:/usr/local/software/gold/matlab/spm8:/usr/local/software/gold/matlab/tools:/usr/local/MATLAB/R2015a/toolbox:/usr/local/MATLAB/R2015a/toolbox/images/images

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+while test $# -gt 0; do
+	case "$1" in
+		-h|--help)
+			echo "Script to Run fmriprep with specific functionality"
+			echo " "
+			echo "fmriprep [options] "
+			echo " "
+			echo "options:"
+			echo "-h, --help			show brief help"
+			echo "-s, --subject=DIR			specify the directory of the subject you'd like to preprocess"
+			echo "-o, --output=DIR			specify a directory to output Preprocessed folder"
+			echo "-w, --work=DIR			*OPTIONAL* directory to output work folder, by default it will be 'pwd' "
+			exit 0
+			;;
+		-s)
+			shift
+			if test $# -gt 0; then
+				SUBJ_DIR=$1
+			else
+				echo "No subject directory specified"
+				exit 1
+			fi
+			shift
+			;;
+		--subject*)
+			SUBJ_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+			shift
+			;;
+		-o)
+                        shift
+                        if test $# -gt 0; then
+                                OUT_DIR=$1
+                        else
+                                echo "No output directory specified"
+                                exit 1
+                        fi
+                        shift
+                        ;;
+                --output*)
+                        OUT_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+                        shift
+                        ;;
+		-w)
+                        shift
+                        if test $# -gt 0; then
+                                WORK_DIR=$1
+                        else
+				WORK_DIR=$(pwd)
+                                echo "No work directory specified. Using $WORK_DIR"
+                        fi
+                        shift
+                        ;;
+                --work*)
+                        WORK_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+                        shift
+                        ;;
+		*)
+			break
+			;;
+	esac
+done
+
+[ -z $WORK_DIR ] && echo "No work directory specified. Using $(pwd)" && WORK_DIR=$(pwd)
+echo ""
+echo Running...  singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --ignore slicetiming --output-spaces MNI152NLin6Asym:res-2
+
+singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --ignore slicetiming --output-spaces MNI152NLin6Asym:res-2

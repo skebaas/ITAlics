@@ -80,7 +80,40 @@ conf.level1design_model_serial_correlations = 'FAST'
 # default value to use fieldmap in the pipeline
 useFieldmap=False
 noPrint = True
+def run_script(script, stdin=None):
+    """Returns (stdout, stderr), raises error on non-zero return code"""
+    import subprocess
+    # Note: by using a list here (['bash', ...]) you avoid quoting issues, as the
+    # arguments are passed in exactly this order (spaces, quotes, and newlines won't
+    # cause problems):
+    proc = subprocess.Popen(['bash', '-c', script],
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE)
+    stdout, stderr = proc.communicate()
+    if proc.returncode:
+        raise ScriptException(proc.returncode, stdout, stderr, script)
+    return stdout, stderr
 
+class ScriptException(Exception):
+    def __init__(self, returncode, stdout, stderr, script):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        Exception().__init__('Error in script')
+
+def gunzip_files(directory):
+    import os
+    import glob
+    directory = os.path.abspath(directory)
+    niftis = os.path.join(directory, 'ses-1', '*', '*.gz')
+    bash_script = "for nifti in " + niftis + " ; do gunzip $nifti; done"
+    print("unzipping nifti_gz files in " + directory)
+    run_script(bash_script)
+
+def gzip_files(directory):
+    print("zipping nifti files")
+    bash_script = "find " +directory+ " -name '*nii' -exec gzip {} \;"
+    run_script(bash_script)
 
 def createFolder(foldername):
     """
@@ -117,7 +150,7 @@ DIAMOND 1.0 Input Data Source
 
 datasource is the module that uses wildcards to pull
 struct		- anatomical NIFTI file
-func 		- functional NIFTI file
+func 		- functional NIFIT file
 behav		- behaviour file that can be either an EPRIME text file or something else
 fieldmap_mag	- fieldmap magnitute NIFTI file
 fieldmap_phase	- fieldmap phase NIFTI file
@@ -325,7 +358,7 @@ def reward(directory,sequence):
 	dm1 = pe.Node(name="create_DM1",interface=Function(input_names=["matlab_function","eprime_file",'sequence'],
 					output_names=["design_matrix"],function=gold.create_design_matrix))
 	dm1.inputs.matlab_function = "reward1_eprime2dm"
-	dm1.inputs.sequence = 'reward1'
+        dm1.inputs.sequence = 'reward1'
 	
 	# create DesignMatrix for run2
 	dm2 = pe.Node(name="create_DM2",interface=Function(input_names=["matlab_function","eprime_file",'sequence'],
@@ -763,6 +796,7 @@ if __name__ == "__main__":
 		 if arg in opts:
 		 	opt_list.append(arg)
 	directory = sys.argv[len(sys.argv)-1]+"/"
+        gunzip_files(directory)
 	
 	# setup logging, display and other config
 	#disp = os.environ['DISPLAY']
@@ -809,6 +843,8 @@ if __name__ == "__main__":
 		reward = reward(directory,"reward")
 		#reward.run()		
 		reward.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
+                folder=os.path.join(directory, 'analysis','reward')
+                gzip_files(folder)
 		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
 
 	if check_sequence(opt_list,directory,"efnback"):
@@ -819,6 +855,8 @@ if __name__ == "__main__":
 		efnback = efnback(directory,"efnback")
 		#efnback.run()		
 		efnback.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
+                folder=os.path.join(directory, 'analysis','efnback')
+                gzip_files(folder)
 		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
 
 	
@@ -827,7 +865,9 @@ if __name__ == "__main__":
 		t = time.time()	
 		createMotionFile(directory, 'dynface')	
 		df = dynamic_faces(directory,"dynface")
-		df.run()		
+		df.run()
+                folder=os.path.join(directory, 'analysis','dynface')
+                gzip_files(folder)
 		#df.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
 		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
 
