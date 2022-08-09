@@ -108,12 +108,15 @@ def gunzip_files(directory):
     niftis = os.path.join(directory, 'ses-1', '*', '*.gz')
     bash_script = "for nifti in " + niftis + " ; do gunzip $nifti; done"
     print("unzipping nifti_gz files in " + directory)
-    run_script(bash_script)
+    if glob.glob(niftis):
+        run_script(bash_script)
 
 def gzip_files(directory):
     print("zipping nifti files")
     bash_script = "find " +directory+ " -name '*nii' -exec gzip {} \;"
     run_script(bash_script)
+    #bash_script = "find " +directory+ " -name '*img' -exec gzip {} \;"
+    #run_script(bash_script)
 
 def createFolder(foldername):
     """
@@ -165,6 +168,27 @@ def datasource(directory, sequence):
 	
 	# define some variables beforehand
 	subject=get_subject(directory)
+
+	# Case for resting state
+	if sequence.startswith('resting'):
+		field_template = dict(func="ses-1/func/*task-rest*preproc_bold.nii*",mask="ses-1/anat/*space-MNI152NLin6Asym_res-2_desc-brain_mask.nii*", confounds="ses-1/func/*task-rest*desc-confounds*.tsv")
+		template_args  = dict(func=[[]],mask=[[]],confounds=[[]])
+		
+		outfields=['func', 'mask', 'confounds']
+		datasource = pe.Node(interface=nio.DataGrabber(
+						 infields=['subject_id','sequence'], 
+						 outfields=outfields),
+	                     name = "datasource_"+sequence)
+		
+		datasource.inputs.base_directory = os.path.abspath(directory)
+		datasource.inputs.template = '*'
+		datasource.inputs.field_template = field_template
+		datasource.inputs.template_args  = template_args
+		datasource.inputs.subject_id = subject
+		datasource.inputs.sequence = sequence
+		datasource.inputs.sort_filelist = True
+		
+		return datasource
 	
 	# figure out if this is new or old naming convention file
 	orig = False	
@@ -177,7 +201,7 @@ def datasource(directory, sequence):
 
 
 	# define templates for datasource for functional and structural images
-	field_template = dict(func="ses-1/func/*"+sequence+"*preproc_bold.nii",struct="ses-1/anat/*desc-preproc_T1w.nii")
+	field_template = dict(func="ses-1/func/*"+sequence+"*preproc_bold.nii*",struct="ses-1/anat/*desc-preproc_T1w.nii*")
 	template_args  = dict(func=[[]],struct=[[]])                
 
 
@@ -197,7 +221,7 @@ def datasource(directory, sequence):
 			print('No bhv found for ' +sequence+'... Exiting now...')
 		template_args['behav']  = [[]]
 		outfields.append('behav')
-		field_template['mask_file'] = "ses-1/func/*"+sequence+"*brain_mask.nii"
+		field_template['mask_file'] = "ses-1/func/*"+sequence+"*brain_mask.nii*"
 		outfields.append('mask_file')
 		template_args['mask_file'] = [[]]
 		field_template['movement'] ="motion/"+sequence+"_motion.1D"
@@ -673,6 +697,7 @@ def dynamic_faces(directory,sequence):
 	contrasts.append(("Sad > Shape","T",["Sad*bf(1)","Shape*bf(1)"],[1,-1]))
 	contrasts.append(("Happy > Shape","T",["Happy*bf(1)","Shape*bf(1)"],[1,-1]))
 	contrasts.append(("Emotion > Shape","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)","Shape*bf(1)"],[.25,.25,.25,.25,-1]))
+	contrasts.append(("Maya_Contrast","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)"],[1,0,0,1]))
 
 	# get datasoruce
 	ds = datasource(directory,sequence)
@@ -683,6 +708,11 @@ def dynamic_faces(directory,sequence):
 	l1 = gold.level1analysis(conf)
 	l1.inputs.input.contrasts = contrasts
 
+	# mCompCor
+	#cc = pe.Node(interface=wrap.mCompCor(), name="mCompCor")
+	#cc.inputs.white_mask = conf.ROI_white
+	
+
 	# create DesignMatrix
 	dm = pe.Node(name="create_DM",interface=Function(input_names=["matlab_function","eprime_file",'sequence'],
 					output_names=["design_matrix"],function=gold.create_design_matrix))
@@ -692,10 +722,12 @@ def dynamic_faces(directory,sequence):
 	# connect components into a pipeline
 	task = pe.Workflow(name=sequence)
 	task.base_dir = base_dir
+	#task.connect([(ds,cc,[('func','source'),('mask_file','brain_mask'),('movement','movement')])])
 
-	task.connect(dynfaces,"output.movement",l1,"input.movement")	
-	task.connect(ds,'behav',dm,"eprime_file")	
+	#task.connect(dynfaces,"output.movement",l1,"input.movement")
 	task.connect(dynfaces,'output.func',l1,'input.func')
+	task.connect(ds,"movement",l1,"input.movement")	
+	task.connect(ds,'behav',dm,"eprime_file")	
 	task.connect(dm,'design_matrix',l1,'input.design_matrix')
 	task.connect(ds,'mask_file',l1,"input.mask")
 	
@@ -720,16 +752,27 @@ def dynamic_faces(directory,sequence):
 	ppi_contrasts.append(("EmotionNeg > Happy","T",["PPI_Anger","PPI_Fear","PPI_Sad","PPI_Happy"],[.33,.33,.33,-1]))
 	#ppi_contrasts.append(("Emotion > Shape","T",["Anger(1)","Fear(1)","Sad(1)","Happy(1)","Shape(1)"],[.25,.25,.25,.25,-1]))
 	ppi_contrasts.append(("Anger_td","T",["PPI_Anger"],[1]))
+	ppi_contrasts.append(("Maya_Contrast","T",["PPI_Anger","PPI_Fear","PPI_Sad","PPI_Happy"],[1,0,0,1]))
 	
-	pppi_rois  = 	[("left_amygdala",conf.ROI_L_amyg),
-			 ("right_amygdala",conf.ROI_R_amyg),
-			 ("left_VLPFC",conf.ROI_L_VLPFC),
-			 ("right_VLPFC",conf.ROI_R_VLPFC),	
- 			 ("beckmann_region_1",conf.ROI_BR1),
-			 ("beckmann_region_2",conf.ROI_BR2),
-			 ("beckmann_region_3",conf.ROI_BR3),
-			 ("beckmann_region_4",conf.ROI_BR4),
-			 ("bilateral_amygdala",conf.ROI_amygdala_LR)	]
+        pppi_rois  =    [("left_amygdala",conf.ROI_L_amyg),
+                         ("right_amygdala",conf.ROI_R_amyg),
+                         ("left_VLPFC",conf.ROI_L_VLPFC),
+                         ("right_VLPFC",conf.ROI_R_VLPFC),
+                         ("beckmann_region_1",conf.ROI_BR1),
+                         ("beckmann_region_2",conf.ROI_BR2),
+                         ("beckmann_region_3",conf.ROI_BR3),
+                         ("beckmann_region_4",conf.ROI_BR4),
+                         ("bilateral_amygdala",conf.ROI_amygdala_LR),
+                         ("ROI_BilateralFG1", conf.ROI_Bilateral_FG1),
+                         ("ROI_BilateralFG2", conf.ROI_Bilateral_FG2),
+                         ("ROI_BilateralFG3", conf.ROI_Bilateral_FG3),
+                         ("ROI_BilateralFG4", conf.ROI_Bilateral_FG4),
+                         ("BilateralFusiform", conf.ROI_Bilateral_FG),
+                        ("putamen",conf.ROI_putamen),
+                        ("insula",conf.ROI_insula),
+                        ("dlPFC",conf.ROI_dlPFC),
+                        ("caudate",conf.ROI_caudate)]
+
 
 	# now do gPPI analysis
 	for roi in pppi_rois:
@@ -754,6 +797,45 @@ def dynamic_faces(directory,sequence):
 	task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
 	return task
 
+def resting_state(directory,sequence):
+	import nipype.pipeline.engine as pe          # pypeline engine
+	import custom_interfaces as wrap
+	import nipype.interfaces.spm as spm          # spm
+	from nipype.interfaces.utility import Function
+	import nipype.algorithms.misc as misc
+	import nipype.interfaces.utility as util     # utility
+	import nipype.interfaces.io as nio 
+
+	subject = get_subject(directory)
+
+
+
+
+	# define base directory
+	base_dir = os.path.abspath(directory+"/analysis/")
+	if not os.path.exists(base_dir):
+		os.makedirs(base_dir)
+	out_dir = os.path.abspath(directory+"/output/"+sequence)
+	if not os.path.exists(out_dir):
+		os.makedirs(out_dir)
+	
+	# get datasoruce
+	ds = datasource(directory,"restingstate")
+	
+	task = pe.Workflow(name=sequence)
+	task.base_dir = base_dir
+
+	rest = pe.Node(interface=wrap.Restingstate(), name='1stlevels')
+	rest.inputs.output_file=subject+'output.csv'
+	rest.inputs.input_wm_mask = '/usr/local/software/ITAlics/data/white_matter_mask_mni.nii'
+
+	task.connect(ds,'mask', rest, 'input_mask')
+	task.connect(ds,'func', rest, 'input_image')
+	task.connect(ds,'confounds', rest, 'input_confound_csv')
+
+	return task
+	
+	
 
 # check sequence (should we process it or not)
 def check_sequence(opt_list,directory,seq):
@@ -776,7 +858,7 @@ def check_sequence(opt_list,directory,seq):
 #
 ########################################################################################
 if __name__ == "__main__":	
-	opts = "[-dynamic_faces|-efnback|-reward|-resting_state|-asl|-fieldmap|-noprint|-trio]"
+	opts = "[-dynamic_faces|-efnback|-reward|-resting_state]"
 	opt_list = []
 	
 	# get arguments
@@ -796,7 +878,8 @@ if __name__ == "__main__":
 		 if arg in opts:
 		 	opt_list.append(arg)
 	directory = sys.argv[len(sys.argv)-1]+"/"
-        gunzip_files(directory)
+        gunzip_files(directory+"ses-1/func/")
+	gunzip_files(directory+"ses-1/anat/")
 	
 	# setup logging, display and other config
 	#disp = os.environ['DISPLAY']
@@ -818,21 +901,6 @@ if __name__ == "__main__":
 	mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodisplay -nosplash")
 	mlab.MatlabCommand.set_default_terminal_output('stream')
 	#mlab.MatlabCommand.set_default_paths(bin_dir)
-	
-	if "-fieldmap" in opt_list:	
-		useFieldmap = True
-		opt_list.remove("-fieldmap")
-	if "-noprint" in opt_list:	
-		noPrint = True
-		opt_list.remove("-noprint")
-	
-	# change dwell time based on scanner
-	if "-trio" in opt_list:
-		opt_list.remove("-trio")
-		conf.fugue_dwell_time = 0.000779983     # For Diamond Trio (currently in gold.py)
-	else:
-		conf.fugue_dwell_time = 0.00064  	# For Diamond Prisma + Impress Prisma
-
 
 
 	if check_sequence(opt_list,directory,"reward"):
@@ -844,7 +912,7 @@ if __name__ == "__main__":
 		#reward.run()		
 		reward.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
                 folder=os.path.join(directory, 'analysis','reward')
-                gzip_files(folder)
+                #gzip_files(folder)
 		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
 
 	if check_sequence(opt_list,directory,"efnback"):
@@ -865,9 +933,18 @@ if __name__ == "__main__":
 		t = time.time()	
 		createMotionFile(directory, 'dynface')	
 		df = dynamic_faces(directory,"dynface")
+		#df.run()
+                #folder=os.path.join(directory, 'analysis','dynface')
+                #gzip_files(folder)
+		df.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
+		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
+
+	if check_sequence(opt_list,directory,"resting_state"):
+		t = time.time()	
+		df = resting_state(directory,"restingstate")
 		df.run()
-                folder=os.path.join(directory, 'analysis','dynface')
-                gzip_files(folder)
+                #folder=os.path.join(directory, 'analysis','restingstate')
+                #gzip_files(folder)
 		#df.run(plugin='MultiProc', plugin_args={'n_procs' : conf.CPU_CORES})
 		#log.info("elapsed time %.03f minutes\n" % ((time.time()-t)/60))
 
