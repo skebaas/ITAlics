@@ -1,28 +1,37 @@
-
-
 import os 
 import glob
 import json
-'''Remove IntendedFor statement from json files if a mistake was made'''
 
+def remove_intended_for(path):
+    """
+    Remove 'IntendedFor' statement from json files if a mistake was made
+    :param path: The path where the BIDS formatted subjects are located
+    """
+    # Get the list of fieldmaps json files
+    files = os.path.join(path, 'sub-*', 'ses-1', 'fmap', '*.json')
+    fmaps = glob.glob(files)
 
-#grab the epi jsons and store them in a list
+    # Search through each fmap json and remove 'IntendedFor'
+    for file in fmaps:
+        with open(file, 'r') as data_file:
+            data = json.load(data_file)
+        try:
+            print(f"Removing 'IntendedFor' statement from {file}")
+            del data['IntendedFor']
+        except KeyError:
+            print(f"ERROR: Could not find 'IntendedFor' statement for {file}")
+        with open(file, 'w') as data_file:
+            json.dump(data, data_file)
+	
+def usage_example():
+    """
+    Example of how to use the 'remove_intended_for' function
+    """
+    print("path = '/data/D2/Nifti_OC' ")
+    print("remove_intended_for(path)")
 
-files = os.path.join('/data', 'D2', 'Nifti_OC', 'sub-*', 'ses-1', 'fmap', '*.json')
-fmaps = glob.glob(files)
+if __name__ == "__main__":	
+	import sys
 
-
-
-#next search through each fmap json and remove 'IntendedFor'
-
-for file in fmaps:
-
-	with open(file, 'r') as data_file:
-		data = json.load(data_file)
-	try:
-		print(f"removing IntendedFor statement from {file}")
-		del data['IntendedFor']
-	except KeyError:
-		print(f"ERROR: could not find IntendedFor statement for {file}")
-	with open(file, 'w') as data_file:
-		data = json.dump(data, data_file)
+	path = sys.argv[1]
+	remove_inteded_for(path)
