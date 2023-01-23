@@ -1,40 +1,37 @@
-#!/usr/bin/python3
-
-
+import os
+import glob
+import json
 
 def addIntendedforStatement(subject):
-	subject = subject
-	import os
-	import sys
-	import glob
-	import json
+    """
+    Add 'IntendedFor' condition to fieldmaps for a given subject
+    :param subject: The path of the subject
+    """
+    subject_name = os.path.basename(subject)
+    print(f"Adding 'IntendedFor' condition to fieldmaps for {subject_name}")
 
-	subject_name = os.path.basename(subject)
-	print(f"adding 'IntendedFor' Statement to fieldmaps for {subject_name}")
+    # Define the path for fieldmaps and functional files
+    fmaps_path = os.path.join(subject, 'ses-1', 'fmap', '*.json')
+    funcs_path = os.path.join(subject, 'ses-1', 'func', '*.nii*')
 
-	#Edit 'ses-1' to be the same as your session
-	fmapsPath = os.path.join(subject, 'ses-1', 'fmap', '*.json')
-	fmaps = glob.glob(fmapsPath)
-	funcsPath = os.path.join(subject, 'ses-1', 'func', '*.nii*')
-	funcs = glob.glob(funcsPath)
+    # Get the list of fieldmaps and functional files
+    fmaps = glob.glob(fmaps_path)
+    funcs = glob.glob(funcs_path)
 
+    # Remove the subject path from the functional files' path
+    funcs = list(map(lambda x: x.replace(f'{subject}/', ''), funcs))
 
-	#substring to be removed from absolute path of functional files
-	pathToRemove = subject + '/'
-	funcs = list(map(lambda x: x.replace(pathToRemove, ''), funcs))
-	for fmap in fmaps:
-		with open(fmap, 'r') as data_file:
-			fmap_json = json.load(data_file)
-		fmap_json['IntendedFor'] = funcs
+    # Add the 'IntendedFor' key to the fieldmaps' json file
+    for fmap in fmaps:
+        with open(fmap, 'r') as data_file:
+            fmap_json = json.load(data_file)
+        fmap_json['IntendedFor'] = funcs
 
-		with open(fmap, 'w') as data_file:
-			fmap_json = json.dump(fmap_json, data_file, indent=4)
+        with open(fmap, 'w') as data_file:
+            json.dump(fmap_json, data_file, indent=4)
 
 if __name__ == "__main__":	
 	import sys
-	import os
-	import glob
-	import json
 
 	subjectPath = sys.argv[1]
 	subject = glob.glob(subjectPath)
