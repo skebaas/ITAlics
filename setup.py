@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'pandas',
         'nipype',
-        'nibable',
+        'nibabel',
         'numpy'
     ],
     # Ubuntu specific installations
