@@ -325,7 +325,7 @@ def reward(directory,sequence):
 	import nipype.interfaces.fsl as fsl          # fsl
 	import nipype.interfaces.fsl.maths as math  
 	import nipype.interfaces.afni as afni	     # afni
-	conf.glm_design = '/usr/local/software/gold/linears/linear_rew.txt'
+	conf.glm_design = '/ix/mphillips/D2/ITAlics/linears/linear_rew.txt'
 
 
 	fsl.FSLCommand.set_default_output_type('NIFTI')
@@ -471,7 +471,7 @@ def reward(directory,sequence):
 	gold.save_files(task,l1.get_node('output'),datasink,["spm_mat_file","con_images"], not noPrint)
 
 	# create a pretty graphics
-	task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
+	#task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
 	return task
 
 """
@@ -490,7 +490,8 @@ def efnback(directory,sequence):
 	import nipype.interfaces.fsl as fsl          # fsl
 	import nipype.interfaces.fsl.maths as math  
 	import nipype.interfaces.afni as afni	     # afni
-	conf.glm_design = '/usr/local/software/gold/linears/linear_efn.txt'
+	conf.glm_design = '/ix/mphillips/D2/ITAlics/linears/linear_efn.txt'
+	conf.level1design_model_serial_correlations = 'AR(1)'
 
 	# redefine some of the parameters
 	#conf.modelspec_high_pass_filter_cutoff = 60
@@ -502,7 +503,7 @@ def efnback(directory,sequence):
 	subject = get_subject(directory)
 	
 	# define base directory
-	base_dir = os.path.abspath(directory+"/analysis/")
+	base_dir = os.path.abspath(directory+"/analysis_test/")
 	if not os.path.exists(base_dir):
 		os.makedirs(base_dir)
 	out_dir = os.path.abspath(directory+"/output/"+sequence)
@@ -557,6 +558,13 @@ def efnback(directory,sequence):
 	l1 = gold.level1analysis(conf)
 	l1.inputs.input.contrasts = contrasts
 	
+	# mCompCor for run 1
+	cc1 = pe.Node(interface=wrap.mCompCor(), name="mCompCor1")
+	cc1.inputs.white_mask = conf.ROI_white
+        # mCompCor for run 2
+	cc2 = pe.Node(interface=wrap.mCompCor(), name="mCompCor2")
+	cc2.inputs.white_mask = conf.ROI_white
+
 	# create DesignMatrix
 	dm1 = pe.Node(name="create_DM1",interface=Function(input_names=["matlab_function","eprime_file", "sequence"],
 					output_names=["design_matrix"],function=gold.create_design_matrix))
@@ -579,9 +587,12 @@ def efnback(directory,sequence):
 	task = pe.Workflow(name=sequence)
 	task.base_dir = base_dir
 	
-	# merge regressors
-	task.connect(efnback1,"output.movement",merge_regressors,"in1")	
-	task.connect(efnback2,"output.movement",merge_regressors,"in2")	
+	# pipe results of preprocessing into CompCore
+	task.connect([(ds1,cc1,[('func','source'),('mask_file','brain_mask'),('movement','movement')])])
+	task.connect([(ds2,cc2,[('func','source'),('mask_file','brain_mask'),('movement','movement')])])
+        # merge regressors
+	task.connect(cc1,"regressors",merge_regressors,"in1")
+	task.connect(cc2,"regressors",merge_regressors,"in2")
 
 	# merge results of both runs into one
 	task.connect(ds1,'behav',dm1,"eprime_file")	
@@ -612,10 +623,35 @@ def efnback(directory,sequence):
 
 
 	# now define PPI
-	ppi_contrasts = []	
-	ppi_contrasts.append(("2back emotion-2back noface","T",["PPI_twofear","PPI_twohappy","PPI_twoblank"],[.5,.5,-1]))
-	pppi_rois  = 	[("bilateral_amygdala",conf.ROI_amygdala_LR)]	
-
+	contrasts2 = []
+	contrasts2.append(("2back emotion-2back noface","T",["twofear*bf(1)","twohappy*bf(1)","twoblank*bf(1)"],[.5,.5,-1]))
+	contrasts2.append(("0back noface","T",["zeroblank*bf(1)"],[1]))
+	contrasts2.append(("0back neutral","T",["zeroneutral*bf(1)"],[1]))
+	contrasts2.append(("0back fear","T",["zerofear*bf(1)"],[1]))
+	contrasts2.append(("0back happy","T",["zerohappy*bf(1)"],[1]))
+	contrasts2.append(("2back noface","T",["twoblank*bf(1)"],[1]))
+	contrasts2.append(("2back neutral","T",["twoneutral*bf(1)"],[1]))
+	contrasts2.append(("2back fear","T",["twofear*bf(1)"],[1]))
+	contrasts2.append(("2back happy","T",["twohappy*bf(1)"],[1]))
+	pppi_rois  =   [("bilateral_amygdala",conf.ROI_amygdala_LR), ("left_amygdala",conf.ROI_L_amyg), ("right_amygdala", conf.ROI_R_amyg), ("left_rostral_middle_frontal", conf.ROI_BA9_L),
+                ("right_rostral_middle_frontal", conf.ROI_BA9_R), ("dorsal_ACC", conf.ROI_D_ACC), ("BA7", conf.ba7), ("DLPFC", conf.dlpfc) ]
+	ppi_contrasts = []
+        ppi_contrasts.append(("2back emotion-2back noface","T",["PPI_twofear","PPI_twohappy","PPI_twoblank"],[.5,.5,-1]))
+        ppi_contrasts.append(("0back noface","T",["PPI_zeroblank"],[1]))
+        ppi_contrasts.append(("0back neutral","T",["PPI_zeroneutral"],[1]))
+        ppi_contrasts.append(("0back fear","T",["PPI_zerofear"],[1]))
+        ppi_contrasts.append(("0back happy","T",["PPI_zerohappy"],[1]))
+        ppi_contrasts.append(("2back noface","T",["PPI_twoblank"],[1]))
+        ppi_contrasts.append(("2back neutral","T",["PPI_twoneutral"],[1]))
+        ppi_contrasts.append(("2back fear","T",["PPI_twofear"],[1]))
+        ppi_contrasts.append(("2back happy","T",["PPI_twohappy"],[1]))
+	l2 = gold.level1analysis(conf,name='level1_pppi')
+	l2.inputs.input.contrasts = contrasts2
+	# setup first level
+	task.connect(merge_regressors,"out",l2,"input.movement")
+	task.connect(merge_func,'out',l2,'input.func')
+	task.connect(merge_nDM,'out',l2,"input.design_matrix")
+	task.connect(ds1,'mask_file',l2,"input.mask")
 
 	# now do gPPI analysis
 	for roi in pppi_rois:
@@ -624,7 +660,7 @@ def efnback(directory,sequence):
 		pppi.inputs.voi_name = roi[0]
 		pppi.inputs.voi_file = roi[1]
 		pppi.inputs.subject = subject
-		task.connect(l1,'output.spm_mat_file',pppi,'spm_mat_file')
+		task.connect(l2,'output.spm_mat_file',pppi,'spm_mat_file')
 		
 		# run estimate contrast for each ROI
 		contrast = pe.Node(interface = spm.EstimateContrast(), name="contrast"+roi[0])
@@ -637,7 +673,7 @@ def efnback(directory,sequence):
 		task.connect(contrast,'con_images',datasink,"data.pppi_"+roi[0]+"_con_images")
 		task.connect(pppi,"spm_mat_file",datasink,"data.ppi_"+roi[0]+"_spm_file")	
 	# generate a pretty pipeline graphics	
-	task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
+	#task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
 
 	return task
 
@@ -662,7 +698,7 @@ def dynamic_faces(directory,sequence):
 	# predefine hard-coded parameters
 	conf.modelspec_high_pass_filter_cutoff = 256
 	conf.level1design_bases = {'hrf':{'derivs': [1,0]}} #TODO check
-	conf.glm_design = '/usr/local/software/gold/linears/linear_dyn.txt'
+	conf.glm_design = '/ix/mphillips/D2/ITAlics/linears/linear_dyn.txt'
 	fsl.FSLCommand.set_default_output_type('NIFTI')
 
 	subject = get_subject(directory)
@@ -671,7 +707,7 @@ def dynamic_faces(directory,sequence):
 
 
 	# define base directory
-	base_dir = os.path.abspath(directory+"/analysis/")
+	base_dir = os.path.abspath(directory+"/analysis_maya/")
 	if not os.path.exists(base_dir):
 		os.makedirs(base_dir)
 	out_dir = os.path.abspath(directory+"/output/"+sequence)
@@ -698,6 +734,7 @@ def dynamic_faces(directory,sequence):
 	contrasts.append(("Happy > Shape","T",["Happy*bf(1)","Shape*bf(1)"],[1,-1]))
 	contrasts.append(("Emotion > Shape","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)","Shape*bf(1)"],[.25,.25,.25,.25,-1]))
 	contrasts.append(("Maya_Contrast","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)"],[1,0,0,1]))
+	contrasts.append(("Emotion","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)"],[.25,.25,.25,.25))
 
 	# get datasoruce
 	ds = datasource(directory,sequence)
@@ -794,7 +831,7 @@ def dynamic_faces(directory,sequence):
 		task.connect(contrast,'con_images',datasink,"data.pppi_"+roi[0]+"_con_images")
 		task.connect(pppi,"spm_mat_file",datasink,"data.ppi_"+roi[0]+"_spm_file")
 	
-	task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
+	#task.write_graph(dotfilename=sequence+"-workflow")#,graph2use='flat')
 	return task
 
 def resting_state(directory,sequence):
