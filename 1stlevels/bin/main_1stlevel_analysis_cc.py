@@ -6,7 +6,19 @@
 import sys
 import os                                  
 import re
+import nipype.pipeline.engine as pe          # pypeline engine
+import wrappers as wrap
+import nipype.interfaces.spm as spm          # spm
+from nipype.interfaces.utility import Function
+import nipype.algorithms.misc as misc
+import nipype.interfaces.utility as util     # utility
+import nipype.interfaces.io as nio           # Data i/o
 import gold
+
+
+import nipype.interfaces.fsl as fsl          # fsl
+import nipype.interfaces.fsl.maths as math  
+import nipype.interfaces.afni as afni	     # afni
 
 ## Predefined constants
 # defaults are defined in gold.py
@@ -681,30 +693,19 @@ def efnback(directory,sequence):
 GOLD 2.0 dynamic faces sequence
 """
 def dynamic_faces(directory,sequence):
-	import nipype.pipeline.engine as pe          # pypeline engine
-	import wrappers as wrap
-	import nipype.interfaces.spm as spm          # spm
-	from nipype.interfaces.utility import Function
-	import nipype.algorithms.misc as misc
-	import nipype.interfaces.utility as util     # utility
-	import nipype.interfaces.io as nio           # Data i/o
-	import gold
-
-
-	import nipype.interfaces.fsl as fsl          # fsl
-	import nipype.interfaces.fsl.maths as math  
-	import nipype.interfaces.afni as afni	     # afni
+	"""
+	Function that runs dynamic face models with contrasts
+	for a given sequence and directory.
+	:param directory: <string> path to the directory where the analysis should be run
+	:param sequence: <string> name of the sequence to be processed
+	"""
 	
 	# predefine hard-coded parameters
 	conf.modelspec_high_pass_filter_cutoff = 256
 	conf.level1design_bases = {'hrf':{'derivs': [1,0]}} #TODO check
 	conf.glm_design = '/ix/mphillips/D2/ITAlics/linears/linear_dyn.txt'
 	fsl.FSLCommand.set_default_output_type('NIFTI')
-
 	subject = get_subject(directory)
-
-
-
 
 	# define base directory
 	base_dir = os.path.abspath(directory+"/analysis_maya/")
@@ -736,21 +737,13 @@ def dynamic_faces(directory,sequence):
 	contrasts.append(("Maya_Contrast","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)"],[1,0,0,1]))
 	contrasts.append(("Emotion","T",["Anger*bf(1)","Fear*bf(1)","Sad*bf(1)","Happy*bf(1)"],[.25,.25,.25,.25))
 
-	# get datasoruce
+	# Setup nodes to be used in Pipeline
 	ds = datasource(directory,sequence)
-
-	dynfaces = smooth_despike_node(directory, sequence, base_dir, ds)	
-
-	# get first level analysis
+	dynfaces = smooth_despike_node(directory, sequence, base_dir, ds)
 	l1 = gold.level1analysis(conf)
 	l1.inputs.input.contrasts = contrasts
-
-	# mCompCor
-	#cc = pe.Node(interface=wrap.mCompCor(), name="mCompCor")
-	#cc.inputs.white_mask = conf.ROI_white
-	
-
-	# create DesignMatrix
+	cc = pe.Node(interface=wrap.mCompCor(), name="mCompCor")
+	cc.inputs.white_mask = conf.ROI_white
 	dm = pe.Node(name="create_DM",interface=Function(input_names=["matlab_function","eprime_file",'sequence'],
 					output_names=["design_matrix"],function=gold.create_design_matrix))
 	dm.inputs.matlab_function = "dynfaces_task2dm"
@@ -759,23 +752,16 @@ def dynamic_faces(directory,sequence):
 	# connect components into a pipeline
 	task = pe.Workflow(name=sequence)
 	task.base_dir = base_dir
-	#task.connect([(ds,cc,[('func','source'),('mask_file','brain_mask'),('movement','movement')])])
-
-	#task.connect(dynfaces,"output.movement",l1,"input.movement")
-	task.connect(dynfaces,'output.func',l1,'input.func')
-	task.connect(ds,"movement",l1,"input.movement")	
-	task.connect(ds,'behav',dm,"eprime_file")	
-	task.connect(dm,'design_matrix',l1,'input.design_matrix')
-	task.connect(ds,'mask_file',l1,"input.mask")
+	task.connect([(dynfaces, l1, [('output.func', 'input.func')]),
+		       (ds, dm, [('behav', 'eprime_file')]),
+		       (ds,cc,[('func','source'),('mask_file','brain_mask'),('movement','movement')]),
+		       (dm, l1, [('design_matrix', 'input.design_matrix')]),
+		       (cc, l1, [('regressors', 'input.movement')]),
+		       (ds, l1, [('mask_file', 'input.mask')])])
 	
 	# define datasink
 	datasink = pe.Node(nio.DataSink(), name='datasink')
 	datasink.inputs.base_directory = out_dir
-
-	# print and save the output of the preprocess pipeline
-	gold.save_files(task,dynfaces.get_node('output'),datasink,["func","movement","struct","mask"], not noPrint)
-	#gold.save_files(task,l1.get_node('input'),datasink,["func"], not noPrint)	
-	gold.save_files(task,l1.get_node('output'),datasink,["spm_mat_file","con_images"],not noPrint)	
 	
 	# now define PPI
 	ppi_contrasts = []	
