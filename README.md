@@ -17,7 +17,3 @@ The QC subfolder contains all scripts related to quality control for raw data, p
 The Scripts_Pre_PreProcessing subfolder contains scripts used before running through fmriprep. This includes scripts for adding fieldmaps. This folder may be deprecated soon.
 
 If you have any questions or concerns, please consult the documentation within each subfolder or reach out to the repository maintainer.
-
-
-
-# Test
