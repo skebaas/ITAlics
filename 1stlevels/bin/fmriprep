@@ -64,6 +64,6 @@ done
 
 [ -z $WORK_DIR ] && echo "No work directory specified. Using $(pwd)" && WORK_DIR=$(pwd)
 echo ""
-echo Running...  singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --ignore slicetiming --output-spaces MNI152NLin6Asym:res-2
+echo Running...  singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --output-spaces MNI152NLin6Asym:res-2
 
-singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --ignore slicetiming --output-spaces MNI152NLin6Asym:res-2
+singularity run --cleanenv -B $(pwd) $topdir/fmriprep-20.2.6.simg $SUBJ_DIR $OUT_DIR participant --fs-license-file $topdir/license.txt -w $WORK_DIR --fs-no-reconall --output-spaces MNI152NLin6Asym:res-2
