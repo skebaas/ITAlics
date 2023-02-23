@@ -2,15 +2,8 @@ import os
 from nipype import Workflow, Node, Function
 from nipype.interfaces import fsl, DataSink
 from nipype.interfaces.utility import IdentityInterface
-from gold.configuration import conf
-from gold.behavioral import get_subject, datasource
-from gold.processing import smooth_despike_node
-from gold.analysis import level1analysis, mCompCor, create_design_matrix
-
 import nipype.pipeline.engine as pe
 import nipype.interfaces.io as nio
-import os
-import os
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as util
 import nipype.interfaces.fsl as fsl
@@ -123,6 +116,60 @@ def create_smooth_despike_workflow(directory, sequence, base_dir, datasource):
 
     return workflow
 
+def level1analysis(configuration_file, name='level1'):
+    import nipype.interfaces.spm as spm
+    import nipype.interfaces.matlab as matlab
+    import nipype.interfaces.utility as util
+    import nipype.pipeline.engine as pe
+    import nipype.algorithms.modelgen as model
+
+    l1analysis = pe.Workflow(name=name)
+    inputnode = pe.Node(interface=util.IdentityInterface(fields=['movement', 'func', 'design_matrix', 'contrasts', 'mask']), name='input')
+
+    # load config
+    config = configparser.ConfigParser()
+    config.read(configuration_file)
+
+    # specify design matrix model
+    modelspec = pe.Node(interface=model.SpecifySPMModel(), name="modelspec")
+    modelspec.inputs.concatenate_runs = config['modelspec']['concatenate_runs']
+    modelspec.inputs.time_repetition = config['modelspec']['time_repetition']
+    modelspec.inputs.high_pass_filter_cutoff = config['modelspec']['high_pass_filter_cutoff']
+    modelspec.inputs.input_units = config['modelspec']['input_units']
+    l1analysis.connect(inputnode, 'movement', modelspec, 'realignment_parameters')
+    l1analysis.connect(inputnode, 'func', modelspec, 'functional_runs')
+    l1analysis.connect(inputnode, ('design_matrix', load_design_matrix, 0), modelspec, 'subject_info')
+
+    # create design matrix
+    level1design = pe.Node(interface=spm.Level1Design(), name="level1design")
+    level1design.inputs.bases = config['level1design']['bases']
+    level1design.inputs.timing_units = config['level1design']['timing_units']
+    level1design.inputs.interscan_interval = config['modelspec']['time_repetition']
+    level1design.inputs.microtime_onset = config['level1design']['microtime_onset']
+    level1design.inputs.microtime_resolution = config['level1design']['microtime_resolution']
+    level1design.inputs.model_serial_correlations = config['level1design']['model_serial_correlations']
+
+    # Incorporate fmriprep mask in spm model
+    l1analysis.connect(inputnode, 'mask', level1design, 'mask_image')
+    l1analysis.connect(modelspec, 'session_info', level1design, 'session_info')
+
+    # level 1 estimate
+    level1estimate = pe.Node(interface=spm.EstimateModel(), name="level1estimate")
+    level1estimate.inputs.estimation_method = config['level1estimate']['estimation_method']
+    l1analysis.connect(level1design, 'spm_mat_file', level1estimate, 'spm_mat_file')
+
+    # no need for contrast for pppi model
+    contrastestimate = pe.Node(interface=spm.EstimateContrast(), name="contrastestimate")
+    contrastestimate.inputs.use_derivs = config['contrastestimate']['use_derivs']
+    l1analysis.connect(inputnode, 'contrasts', contrastestimate, 'contrasts')
+    l1analysis.connect(level1estimate, ['spm_mat_file', 'beta_images', 'residual_image'], contrastestimate, ['spm_mat_file', 'beta_images', 'residual_image'])
+
+    # output
+    outputnode = pe.Node(interface=util.IdentityInterface(fields=['spm_mat_file', 'con_images', 'spmT_images', 'residual_image']), name='output')
+    l1analysis.connect(contrastestimate, ['spm_mat_file', 'con_images', 'spmT_images'], outputnode, ['spm_mat_file', 'con_images', 'spmT_images'])
+
+    return l1analysis
+
 
 def task(directory, sequence, configuration_file):
     fsl.FSLCommand.set_default_output_type('NIFTI')
@@ -130,11 +177,7 @@ def task(directory, sequence, configuration_file):
     config.read(configuration_file)
 
     #Extract following variables from configuration file
-    output_name = eval(config.get('Task', 'output_name'))
-    conf.modelspec_high_pass_filter_cutoff = eval(config.get('Task', 'high_pass_filter_cutoff'))
-    conf.level1design_bases = eval(config.get('Task', 'level1design_bases'))
-    conf.glm_design = eval(config.get('Task', 'glm_design'))
-    contrasts = eval(config.get('Task', 'contrasts'))
+    contrasts = eval(config['Task']['contrasts'])
 
     # Define base directory
     base_dir = os.path.abspath(os.path.join(directory, 'analysis', output_name))
@@ -148,7 +191,7 @@ def task(directory, sequence, configuration_file):
     ds = datasource(directory, sequence)
     smoothed_task = create_smooth_despike_workflow(directory, sequence, base_dir, ds)
 
-    l1 = Node(interface=level1analysis(conf), name='level1analysis')
+    l1 = Node(interface=level1analysis(configuration_file), name='level1analysis')
     l1.inputs.input.contrasts = contrasts
 
     cc = Node(interface=mCompCor(), name='mCompCor')
@@ -164,10 +207,10 @@ def task(directory, sequence, configuration_file):
     task = Workflow(name=sequence, base_dir=base_dir)
     task.connect([(smoothed_task, l1, [('output_func', 'input.func')]),
                   (ds, dm, [('behav', 'eprime_file')]),
-                  (ds, cc, [('func', 'source'), ('mask_file', 'brain_mask'), ('movement', 'movement')]),
+                  (smoothed_task, cc, [('func', 'source'), ('mask_file', 'brain_mask'), ('movement', 'movement')]),
                   (dm, l1, [('design_matrix', 'input.design_matrix')]),
                   (cc, l1, [('regressors', 'input.movement')]),
-                  (ds, l1, [('mask_file', 'input.mask')])])
+                  (smoothed_task, l1, [('mask_file', 'input.mask')])])
 
     # Define datasink
     datasink = Node(interface=DataSink(), name='datasink')
