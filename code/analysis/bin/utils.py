@@ -20,7 +20,7 @@ def load_design_matrix(mat_files, trim=0):
     """
     Load design matrices from one or more Matlab .mat files.
 
-    Args:
+    Parameters:
         mat_files (str): a path to a .mat file or a list of paths to .mat files.
         trim (int): the number of columns to trim from the end of the design matrix (default 0).
 
@@ -95,7 +95,7 @@ def create_design_matrix(matlab_function, eprime_file, sequence):
     """
     Creates a design matrix using a MATLAB function, an eprime file and a sequence.
 
-    Args:
+    Parameters:
         matlab_function (str): Name of the MATLAB function to be executed
         eprime_file (str): File path of the eprime file
         sequence (str): Sequence identifier
@@ -147,7 +147,7 @@ def datasource(directory, sequence):
     This function creates a Nipype data source node that retrieves input data for a given subject and sequence.
     The input data includes functional and structural MRI scans, as well as task-specific behavior files and motion parameters.
 
-    Args:
+    Parameters:
         directory (str): The base directory where the input data is stored.
         sequence (str): The sequence/task name for which input data needs to be retrieved.
 
@@ -209,7 +209,7 @@ def create_motion_file(directory: str, sequence: str) -> None:
     """
     Function to create a motion file by extracting specific columns from a fmriprep TSV file.
 
-    Args:
+    Parameters:
         directory (str): The path to the directory containing the fmriprep TSV file.
         sequence (str): The sequence name used to identify the TSV file.
 
@@ -223,7 +223,7 @@ def create_motion_file(directory: str, sequence: str) -> None:
         """
         Function to check if a folder already exists. If it does not exist, it will create one.
 
-        Args:
+        Parameters:
             foldername (str): The name of the folder to be created.
 
         Returns:
