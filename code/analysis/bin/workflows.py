@@ -54,8 +54,8 @@ def create_smooth_despike_workflow(directory, sequence, base_dir, datasource):
 
 def level1analysis(configuration_file, name='level1'):
     """
-    This function takes in a configuration file path and an optional name forlevel1 fMRI analysis using SPM. 
-    The configuration file contains parameters for model specification, leve 1 design, and contrast estimation.
+    This function takes in a configuration file path and an optional name for level1 fMRI analysis using SPM. 
+    The configuration file contains parameters for model specification, level 1 design, and contrast estimation.
     The workflow is set up using several Nipype interfaces, including `SpecifySPMModel`, `Level1Design`,
     and `EstimateContrast`. The workflow takes inputs for movement, functional runs, design matrix, contrasts, and a mask.  
     It also outputs several files including: `spm_mat_file`, `spm_mat_file_con`, `con_images`, `spmT_images`, `residual_image` 
