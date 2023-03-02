@@ -17,6 +17,7 @@ import nipype.interfaces.afni as afni
 import chardet
 import subprocess
 import scipy.io as sp
+import nipype.interfaces.spm as spm
 
 def load_design_matrix(mat_files, trim=0):
     """
@@ -363,7 +364,6 @@ def create_motion_file(directory: str, sequence: str) -> None:
 
 def task(directory, configuration_file):
     import wrappers as wrap
-    import nipype.interfaces.spm as spm
     fsl.FSLCommand.set_default_output_type('NIFTI')
     subject = os.path.basename(directory)
     config = configparser.ConfigParser()
@@ -475,9 +475,16 @@ def task(directory, configuration_file):
     return task
 
 if __name__ == '__main__':
+    import sys
     #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'dynface')	
     #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/dynfaces_file.cfg')
-    create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback1')
-    create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback2')	
-    df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/efnback_file.cfg')
+    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback1')
+    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback2')	
+    #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/efnback_file.cfg')
+    config_file = sys.argv[1]
+    sequence = sys.argv[2]
+    subject = sys.argv[3]
+    
+    create_motion_file(os.path.abspath(subject), sequence)
+    df = task(os.path.abspath(subject), os.path.abspath(config_file), sequence)
     df.run(plugin='MultiProc', plugin_args={'n_procs' : 8})
