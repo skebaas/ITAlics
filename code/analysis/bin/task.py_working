@@ -302,9 +302,8 @@ def level1analysis(configuration_file, name='level1'):
     l1analysis.connect(level1estimate,'beta_images',contrastestimate,'beta_images'),
     l1analysis.connect(level1estimate,'residual_image',contrastestimate,'residual_image')
     # output
-    outputnode = pe.Node(interface=util.IdentityInterface(fields=['spm_mat_file', 'spm_mat_file_con','con_images', 'spmT_images', 'residual_image','beta_images']), name='output')
+    outputnode = pe.Node(interface=util.IdentityInterface(fields=['spm_mat_file', 'spm_mat_file_con','con_images', 'spmT_images', 'residual_image']), name='output')
     l1analysis.connect(level1estimate,'spm_mat_file',outputnode,'spm_mat_file')
-    l1analysis.connect(level1estimate,'beta_images',outputnode,'beta_images')
     l1analysis.connect(contrastestimate,'spm_mat_file',outputnode,'spm_mat_file_con')
     l1analysis.connect(contrastestimate,'con_images',outputnode,'con_images')
     l1analysis.connect(contrastestimate,'spmT_images',outputnode,'spmT_images')
@@ -383,10 +382,10 @@ def task(directory, configuration_file):
     output_name = eval(config['Task']['output_name'])
 
     # Define base directory
-    base_dir = os.path.abspath(os.path.join(directory, 'analysis', output_name, sequence))
+    base_dir = os.path.abspath(os.path.join(directory, 'analysis', output_name))
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
-    out_dir = os.path.abspath(os.path.join(directory, 'output', output_name, sequence))
+    out_dir = os.path.abspath(os.path.join(directory, 'output', output_name))
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -395,14 +394,13 @@ def task(directory, configuration_file):
     l1.inputs.input.contrasts = contrasts
     if runs > 1:
         # setup merge points
-        merge_func = pe.Node(name="merge_func",interface=util.Merge(runs))
-        merge_nDM = pe.Node(name="merge_nDM",interface=util.Merge(runs))
-        merge_move = pe.Node(name="merge_movement",interface=util.Merge(runs))
-        merge_regressors = pe.Node(name="merge_regressors",interface=util.Merge(runs))
+        merge_func = pe.Node(name="merge_func",interface=util.Merge(2))
+        merge_nDM = pe.Node(name="merge_nDM",interface=util.Merge(2))
+        merge_move = pe.Node(name="merge_movement",interface=util.Merge(2))
+        merge_regressors = pe.Node(name="merge_regressors",interface=util.Merge(2))
 
     for run in range(1, runs+1):
         # Setup nodes to be used in Pipeline
-        sequence = eval(config.get('Task', 'sequence'))
         run_str = str(run)
         if runs > 1:
             sequence = sequence+run_str
@@ -438,8 +436,8 @@ def task(directory, configuration_file):
 
     if runs > 1:
         task.connect([(merge_func, l1, [('out', 'input.func')]),
-                    (merge_nDM, l1, [('out', 'input.design_matrix')]),
-                    (merge_regressors, l1, [('out', 'input.movement')]),
+                    (merge_nDM, l1, [('design_matrix', 'input.design_matrix')]),
+                    (merge_regressors, l1, [('regressors', 'input.movement')]),
                     (smoothed_task, l1, [('output.mask', 'input.mask')])])
     
     # Define datasink
@@ -463,15 +461,15 @@ def task(directory, configuration_file):
         task.connect(pppi,'residual_image',contrast,'residual_image')
 
         # output con images to datasink
-        task.connect(contrast,'con_images',datasink,"gPPI.pppi_"+roi[0]+".@_con_images")
-        task.connect(contrast,"spm_mat_file",datasink,"gPPI.pppi_"+roi[0]+".@_spm_file")
-        task.connect(contrast,"spmT_images",datasink,"gPPI.pppi_"+roi[0]+".@_spmT_images")
+        task.connect(contrast,'con_images',datasink,"data.pppi_"+roi[0]+".@_con_images")
+        task.connect(pppi,"spm_mat_file",datasink,"data.pppi_"+roi[0]+".@_spm_file")
 
 
     # Define the output files to be saved in datasink
-    output_names = ['spm_mat_file_con', 'con_images', 'spmT_images', 'beta_images']
+    output_names = ['spm_mat_file_con', 'con_images', 'spmT_images']
     for output_name in output_names:
         task.connect([(l1, datasink, [(('output.' + output_name), f'level1.@{output_name}')])])
+    
     return task
 
 if __name__ == '__main__':

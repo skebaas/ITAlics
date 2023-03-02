@@ -165,7 +165,11 @@ class PPPIInputSpec(BaseInterfaceInputSpec):
 	voi_name = traits.String(field='Region', mandatory=True,desc='VOI region name')
 	subject = traits.String("subject",field='subject',desc='Subject Name')
 	spm_mat_file = File(exists=True,field='directory', desc='absolute path to SPM.mat',copyfile=True,mandatory=True)
-	comp_contrasts = traits.Int(0,desc="Compute Contrasts",field='CompContrasts', usedefault=True)	
+	comp_contrasts = traits.Int(0,desc="Compute Contrasts",field='CompContrasts', usedefault=True)
+	#mask_file = InputMultiPath(File(exists=True),desc="Mask file",field="Mask",mandatory=True)
+	#mask_file = File(value='mask.nii',exists=True, mandatory=True, copyfile=True,desc='absolute path to mask image')
+	#mask_file = InputMultiPath(File(exists=True),desc='Brain mask 3D nifti file',field="mask",mandatory=True)	
+	mask_file = traits.String("mask",field='mask',desc='mask Name')
 class PPPIOutputSpec(TraitedSpec):
 	beta_images = OutputMultiPath(File(exists=True), desc='beta images')
 	residual_image = File(exists=True, desc='residual images')
@@ -202,20 +206,21 @@ class PPPI(BaseInterface):
 		voi_name = "'"+str(self.inputs.voi_name)+"'"
 		subject  = "'"+str(self.inputs.subject)+"'"
 		spm_file = "'"+str(self.inputs.spm_mat_file)+"'"
+		mask_file = "'"+str(self.inputs.mask_file)+"'"
 		contrast = str(self.inputs.comp_contrasts)
 		directory = os.path.dirname(re.sub("[\[\]']","",spm_file))
 		
 		d = dict(voi_file=voi_file,voi_name=voi_name,subject=subject,
-				 spm_file=spm_file,directory=directory,contrast=contrast)
+				 spm_file=spm_file,directory=directory,contrast=contrast, mask_file=mask_file)
 		myscript = Template("""
 		warning('off','all');
 
 		% copy input 
 		spm = $spm_file;		
 		load(spm);		
-		SPM.VResMS.fname = [SPM.swd '/ResMS.img'];
-		SPM.xVol.VRpv.fname = [SPM.swd '/RPV.img'];
-		SPM.VM.fname = ls([SPM.swd '/../*/mask.img']);
+		SPM.VResMS.fname = [SPM.swd '/ResMS.nii'];
+		SPM.xVol.VRpv.fname = [SPM.swd '/RPV.nii'];
+		SPM.VM.fname = ls([$mask_file]);
 		for i=1:length(SPM.Vbeta)
 			if strcmp(SPM.Vbeta(i).fname(1),'/') == 0
 				SPM.Vbeta(i).fname = [SPM.swd '/' SPM.Vbeta(i).fname];				
@@ -249,8 +254,8 @@ class PPPI(BaseInterface):
 		outputs = self._outputs().get()
 		#outputs['spm_mat_file'] = self.inputs.spm_mat_file
 		outputs['spm_mat_file'] = os.path.join(outdir,"SPM.mat")
-		outputs['beta_images'] = sorted(glob.glob(outdir+'/beta_00*.img'))
-		outputs['residual_image'] = os.path.join(outdir,"ResMS.img")
+		outputs['beta_images'] = sorted(glob.glob(outdir+'/beta_00*.nii'))
+		outputs['residual_image'] = os.path.join(outdir,"ResMS.nii")
 		return outputs
 
 ##############################################################################		
