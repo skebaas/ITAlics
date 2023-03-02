@@ -14,6 +14,35 @@ from utils import load_design_matrix, create_design_matrix, datasource
 import wrappers as wrap
 
 def task(directory, configuration_file):
+    """
+    This function defines a workflow for a neuroimaging task using the Nipype package in Python. 
+    The function takes two arguments: the directory where the data is stored and a configuration 
+    file specifying the details of the task.
+    The function first imports necessary modules and defines variables by parsing the configuration file. 
+    It then creates a workflow object with a base directory, and sets up the first level analysis node 
+    with the specified contrasts. If there are multiple runs, the function sets up merge points for the 
+    functional data, design matrices, movement data, and regressors.
+    For each run, the function sets up nodes for data processing and analysis, such as data smoothing and 
+    creating design matrices. If there is only one run, the function connects these components into a pipeline. 
+    If there are multiple runs, the function merges the data from each run before connecting to the first level 
+    analysis node.
+    The function also sets up a datasink node to store output files, and defines regions of interest for 
+    psychophysiological interaction (PPI) analysis. For each ROI, the function sets up a PPI node and an 
+    estimation of contrasts node, before outputting the contrast images to the datasink.
+    Finally, the function defines the output files to be saved in the datasink and returns the workflow object.
+    
+    Parameters:
+        directory (str): A string with the path to the directory containing the data.
+        configuration_file (str): A string with the path to the configuration file.
+
+    Returns:
+        task (pe.Workflow): The Nipype workflow for the entire 1st level analysis.
+
+    Raises:
+        FileNotFoundError: If the `directory` or `configuration_file` does not exist.
+        ValueError: If the configuration file has missing or invalid parameters.
+
+    """
     fsl.FSLCommand.set_default_output_type('NIFTI')
     subject = os.path.basename(directory)
     config = configparser.ConfigParser()
