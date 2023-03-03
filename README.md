@@ -24,7 +24,7 @@ The script requires the following Python packages:
 
 The following software must be installed on the system:
 - spm12
-- >= fsl/6.0
+- fsl
 - matlab/R2015
 
 ## Usage
