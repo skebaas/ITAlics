@@ -51,7 +51,7 @@ The configuration file should be in the following format:
 data_dir = "/path/to/data/directory"
 ROI_dir = "/path/to/ROI/directory" 
 ROI_suffix = ".nii.gz" 
-ROIS = {"ROI_1": "/path/to/ROI_1.nii.gz", "ROI_2": "/path/to/ROI_2.nii.gz"} output_name = "output_directory_name"  
+ROIS = {"ROI_1": "/path/to/ROI_1.nii.gz", "ROI_2": "/path/to/ROI_2.nii.gz"}
 [Task] 
 sequence = "sequence_name"
 output_name = "test_run"
