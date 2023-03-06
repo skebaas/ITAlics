@@ -15,8 +15,6 @@ The output files to be saved in the datasink are defined in the configuration sc
 The script requires the following Python packages:
 
 -   configparser
--   scipy.io
--   nipype
 -   chardet
 -   networkx <= '2.5'
 -   nipype >= '1.5'
