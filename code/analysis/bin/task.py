@@ -152,7 +152,7 @@ def task(directory, configuration_file):
     output_names = ['spm_mat_file_con', 'con_images', 'spmT_images', 'beta_images']
     for output_name in output_names:
         task.connect([(l1, datasink, [(('output.' + output_name), f'level1.@{output_name}')])])
-    return task
+    return task, base_dir
 
 if __name__ == '__main__':
     import sys
