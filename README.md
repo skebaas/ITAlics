@@ -16,8 +16,8 @@ The script requires the following Python packages:
 
 -   configparser
 -   chardet
--   networkx <= '2.5'
 -   nipype >= '1.5'
+-   networkx <= '2.5'
 
 The following software MUST be installed on the system:
 - spm12
