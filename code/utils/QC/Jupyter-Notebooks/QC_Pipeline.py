@@ -5,6 +5,42 @@ import sys
 import pandas as pd
 import glob
 class Task_DataFrame:
+    """
+    This class is used to generate various metrics and tables for a given task and fmriprep directory. 
+
+    Methods:
+    make_directory(folder):
+        creates a directory if it does not exist
+    get_file_info(file):
+        takes in a path to a confound regressors file and returns the subject name and task name
+    pull_confounds(tsv, output_path, confounds=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z', 'framewise_displacement']):
+        extracts specified regressors from tsv and outputs a motion.tsv to output_path
+    generate_metrics(tsv, confounds_df, output_path):
+        generates various metrics for the columns in confounds_df and outputs the metrics to output_path
+    generate_mean_max(fmriprep_dir, task):
+        generates mean and max values for the confounds in each subject and returns a dataframe
+    flag_exclusion_val(df, exclusion_val, metric='mean'):
+        highlights values in df that are greater than exclusion_val for the given metric
+    percent_coverage(atlas, atlas_txt):
+        generates a dataframe showing the percentage of voxels found compared to the maximum possible count found in each ROI for all subjects with the specified task_name in the fmriprep_dir
+    output_low_coverage(exclusion_val):
+        highlights values in percent_coverage_table that are less than exclusion_val
+
+    Attributes:
+    task (str): the name of the task
+    fmriprep_dir (str): the path to the fmriprep directory
+    task_df (DataFrame): the mean and max values for each subject's confounds
+    mean_highlighted (DataFrame): the mean values greater than 0.7
+    max_highlighted (DataFrame): the max values greater than 5
+    mean_table (DataFrame): the mean values for the confounds greater than 0.5
+    max_table (DataFrame): the max values for the confounds greater than 5
+    max_table_highlighted (DataFrame): the max values greater than 5, highlighted in red
+    mean_table_highlighted (DataFrame): the mean values greater than 0.5, highlighted in red
+    mean_excluded (int): the number of subjects excluded based on mean values
+    max_excluded (int): the number of subjects excluded based on max values
+    percent_coverage_table (DataFrame): the percent coverage of each ROI for all subjects
+    percent_coverage_highlighted (DataFrame): the percent coverage of each ROI for all subjects, highlighted in red for values less than a specified exclusion value
+    """
     def __init__(self, task, fmriprep_dir):
         self.task = task
         self.fmriprep_dir = fmriprep_dir
