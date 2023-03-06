@@ -41,9 +41,12 @@ done
 # check for nipype, pandas, and configparser Python modules
 if ! python3 -c "import nipype" >/dev/null 2>&1 || \
    ! python3 -c "import pandas" >/dev/null 2>&1 || \
+   ! python3 -c "import chardet" >/dev/null 2>&1 || \
+   ! python3 -c "import networkx; exit(networkx.__version__ != '2.5')" 2>&1 || \
    ! python3 -c "import configparser" >/dev/null 2>&1; then
-    echo "Error: Python modules nipype, pandas, and configparser are required"
-    exit 1
+    echo "WARNING: Python modules nipype, pandas, and configparser are required"
+    echo "Installing now!"
+    python3 -u -m pip install nipype pandas configparser chardet networkx==2.5
 fi
 
 # add MATLAB to the PATH if it's not already there
@@ -51,6 +54,10 @@ if ! command -v matlab >/dev/null 2>&1; then
     export PATH=${matlab_path}:${PATH}
 fi
 
+# add afni to the PATH if it's not already there
+if ! command -v 3dDespike >/dev/null 2>&1; then
+    export PATH=$PATH:/usr/local/software/afni/bin
+fi
 # Configure MATLABPATH
 export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/usr/local/software/ITAlics/matlab/PPPI:/usr/local/software/ITAlics/matlab/spm12
 
