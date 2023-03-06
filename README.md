@@ -17,14 +17,14 @@ The script requires the following Python packages:
 -   configparser
 -   scipy.io
 -   nipype
--   nipype.pipeline.engine
--   nipype.interfaces.utility
--   nipype.interfaces.fsl
--   nipype.interfaces.spm
+-   chardet
+-   networkx <= '2.5'
+-   nipype >= '1.5'
 
-The following software must be installed on the system:
+The following software MUST be installed on the system:
 - spm12
 - fsl
+- afni
 - matlab/R2015
 
 ## Usage
