@@ -48,6 +48,7 @@ def task(directory, configuration_file):
     subject = os.path.basename(directory)
     config = configparser.ConfigParser()
     config.read(configuration_file)
+    script_dir = os.path.abspath(os.path.dirname(__file__))
 
     #Extract following variables from configuration file
     sequence = eval(config.get('Task', 'sequence'))
