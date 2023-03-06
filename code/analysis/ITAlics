@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# define a helper function to print usage information
+function usage() {
+    echo "Usage: $0 [-h] [-m MATLAB_PATH] config_file subject_path sequence_name"
+    echo "Runs a Python program called task.py with the specified inputs"
+    echo "The 'task.py' script will run the entirety of the 1st levels"
+    echo ""
+    echo "Positional arguments:"
+    echo "  config_file         Path to the Python configuration file"
+    echo "  subject_path        Path to the subject directory"
+    echo "  sequence_name       Name of the sequence to process"
+    echo ""
+    echo "Optional arguments:"
+    echo "  -h, --help          Show this help message and exit"
+    echo "  -m, --matlab-path   Path to the MATLAB executable (default: matlab)"
+}
+
+# parse command line arguments
+matlab_path="/usr/local/MATLAB/R2015a/bin/matlab"
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -m|--matlab-path)
+            matlab_path="$2"
+            shift 2
+            ;;
+        -*)
+            echo "Error: unrecognized option $1"
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# check for nipype, pandas, and configparser Python modules
+if ! python3 -c "import nipype" >/dev/null 2>&1 || \
+   ! python3 -c "import pandas" >/dev/null 2>&1 || \
+   ! python3 -c "import configparser" >/dev/null 2>&1; then
+    echo "Error: Python modules nipype, pandas, and configparser are required"
+    exit 1
+fi
+
+# add MATLAB to the PATH if it's not already there
+if ! command -v matlab >/dev/null 2>&1; then
+    export PATH=${matlab_path}:${PATH}
+fi
+
+# Configure MATLABPATH
+export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/usr/local/software/ITAlics/matlab/PPPI:/usr/local/software/ITAlics/matlab/spm12
+
+# get the input arguments
+config_file=$1
+subject_path=$2
+sequence_name=$3
+
+# run the Python program
+python3 /data/github/ITAlics_Developmental/code/analysis/bin/task.py $config_file $sequence_name $subject_path

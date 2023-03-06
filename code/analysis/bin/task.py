@@ -37,6 +37,7 @@ def task(directory, configuration_file):
 
     Returns:
         task (pe.Workflow): The Nipype workflow for the entire 1st level analysis.
+        base_dir (str): Path to analysis folder to be removed later
 
     Raises:
         FileNotFoundError: If the `directory` or `configuration_file` does not exist.
@@ -123,7 +124,7 @@ def task(directory, configuration_file):
     
     # Define datasink
     datasink = Node(interface=DataSink(), name='datasink')
-    datasink.inputs.base_directory = out_dir
+    datasink.inputs.base_directory = out_dir, base_dir
 
     for roi in PPI_ROIS:
         # define PPPI for each ROI
@@ -155,6 +156,7 @@ def task(directory, configuration_file):
 
 if __name__ == '__main__':
     import sys
+    import shutil
     from utils import create_motion_file
     #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'dynface')	
     #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/dynfaces_file.cfg')
@@ -165,6 +167,11 @@ if __name__ == '__main__':
     sequence = sys.argv[2]
     subject = sys.argv[3]
     
-    create_motion_file(os.path.abspath(subject), sequence)
-    df = task(os.path.abspath(subject), os.path.abspath(config_file))
+    if sequence == 'efnback':
+        create_motion_file(subject, 'efnback1')
+        create_motion_file(subject, 'efnback2')
+    else:
+        create_motion_file(os.path.abspath(subject), sequence)
+    df, base_dir = task(os.path.abspath(subject), os.path.abspath(config_file))
     df.run(plugin='MultiProc', plugin_args={'n_procs' : 8})
+    shutil.rmtree(base_dir)
