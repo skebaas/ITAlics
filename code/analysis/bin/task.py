@@ -124,7 +124,7 @@ def task(directory, configuration_file):
     
     # Define datasink
     datasink = Node(interface=DataSink(), name='datasink')
-    datasink.inputs.base_directory = out_dir, base_dir
+    datasink.inputs.base_directory = out_dir
 
     for roi in PPI_ROIS:
         # define PPPI for each ROI
