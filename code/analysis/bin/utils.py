@@ -142,13 +142,14 @@ def create_design_matrix(matlab_function, eprime_file, sequence):
 
     return mat
 
-def datasource(directory, sequence):
+def datasource(directory, sequence, session=1):
     """
     This function creates a Nipype data source node that retrieves input data for a given subject and sequence.
     The input data includes functional and structural MRI scans, as well as task-specific behavior files and motion parameters.
 
     Parameters:
         directory (str): The base directory where the input data is stored.
+        session (int): The session number that is being processed
         sequence (str): The sequence/task name for which input data needs to be retrieved.
 
     Returns:
@@ -156,22 +157,24 @@ def datasource(directory, sequence):
     """
 
     # Get subject ID from the base directory
+    base_dir = os.path.join(directory, f"ses-{session}")
     subject = os.path.basename(directory)
+    session = str(session)
 
     # Define the output fields that need to be retrieved
     outfields = ['func', 'struct']
     
     # Define the field template for functional and structural scans
-    field_template = dict(func=f"ses-1/func/*{sequence}*preproc_bold.nii*",
-                          struct="ses-1/anat/*desc-preproc_T1w.nii*")
+    field_template = dict(func=f"func/*{sequence}*preproc_bold.nii",
+                          struct=f"anat/*desc-preproc_T1w.nii*")
     
     # Define template arguments for functional and structural scans
     template_args = dict(func=[[]], struct=[[]])
 
     # If the sequence is a resting-state scan, add mask and confounds to the output fields
     if sequence.startswith('resting'):
-        field_template.update(mask="ses-1/anat/*space-MNI152NLin6Asym_res-2_desc-brain_mask.nii*",
-                              confounds="ses-1/func/*task-rest*desc-confounds*.tsv")
+        field_template.update(mask=f"anat/*space-MNI152NLin6Asym_res-2_desc-brain_mask.nii*",
+                              confounds=f"func/*task-rest*desc-confounds*.tsv")
         outfields.extend(['mask', 'confounds'])
     
     # If the sequence is a task-specific scan, add behavior files, mask file, and motion parameters to the output fields
@@ -179,12 +182,15 @@ def datasource(directory, sequence):
         behavior_files = {'reward1': 'Diamond_Reward*-1', 'reward2': 'Diamond_Reward*-2', 'efnback1': 'EFNBACK*-1', 'efnback2': 'EFNBACK*-2', 'dynface': 'subject*'}
         behavior_file = behavior_files.get(sequence, None)
         if behavior_file is not None:
-            field_template['behav'] = f"BHV*/Scan/{behavior_file}.txt"
+            if gl.glob(os.path.join(base_dir,"BHV*", "Scan", f"{behavior_file}.txt")):
+                field_template['behav'] = f"BHV*/Scan/{behavior_file}.txt"
+            else:
+                field_template['behav'] = f"../BHV*/Scan/{behavior_file}.txt"
             template_args['behav'] = [[]]
             outfields.append('behav')
         else:
             print(f"No behavior file found for {sequence}... Exiting now...")
-        field_template['mask_file'] = f"ses-1/func/*{sequence}*brain_mask.nii*"
+        field_template['mask_file'] = f"func/*{sequence}*brain_mask.nii"
         template_args['mask_file'] = [[]]
         outfields.append('mask_file')
         field_template['movement'] = f"motion/{sequence}_motion.1D"
@@ -195,7 +201,7 @@ def datasource(directory, sequence):
     datasource = pe.Node(interface=nio.DataGrabber(
                          infields=['subject_id', 'sequence'], outfields=outfields),
                          name=f"datasource_{sequence}")
-    datasource.inputs.base_directory = os.path.abspath(directory)
+    datasource.inputs.base_directory = os.path.abspath(base_dir)
     datasource.inputs.template = '*'
     datasource.inputs.field_template = field_template
     datasource.inputs.template_args = template_args
@@ -205,7 +211,7 @@ def datasource(directory, sequence):
 
     return datasource
 
-def create_motion_file(directory: str, sequence: str) -> None:
+def create_motion_file(directory: str, sequence: str, session=1) -> None:
     """
     Function to create a motion file by extracting specific columns from a fmriprep TSV file.
 
@@ -234,14 +240,15 @@ def create_motion_file(directory: str, sequence: str) -> None:
             os.mkdir(foldername)
     
     # Create a new folder to store the motion file.
-    motion_folder = os.path.join(directory, 'motion')
+    session = str(session)
+    motion_folder = os.path.join(directory, f"ses-{session}", 'motion')
     create_folder(motion_folder)
 
     # Define the filename and path for the new motion file.
     motion_file = os.path.join(motion_folder, sequence + '_motion.1D')
 
     # Find the fmriprep TSV file with the specified sequence name and read it into a pandas DataFrame.
-    confounds_tsv = glob.glob(os.path.join(directory, 'ses-1', 'func', f'*{sequence}*desc-confounds_timeseries.tsv'))
+    confounds_tsv = glob.glob(os.path.join(directory, f'ses-{session}', 'func', f'*{sequence}*desc-confounds_timeseries.tsv'))
     confounds_df = pd.read_csv(confounds_tsv[0], sep='\t')
 
     # Extract the specific columns for motion parameters and save them to a new file.

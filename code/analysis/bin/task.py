@@ -13,7 +13,7 @@ from workflows import create_smooth_despike_workflow, level1analysis
 from utils import load_design_matrix, create_design_matrix, datasource 
 import wrappers as wrap
 
-def task(directory, configuration_file):
+def task(directory, configuration_file, session=1):
     """
     This function defines a workflow for a neuroimaging task using the Nipype package in Python. 
     The function takes two arguments: the directory where the data is stored and a configuration 
@@ -34,6 +34,7 @@ def task(directory, configuration_file):
     Parameters:
         directory (str): A string with the path to the directory containing the data.
         configuration_file (str): A string with the path to the configuration file.
+        session (int): Session number to be processed. Default=1
 
     Returns:
         task (pe.Workflow): The Nipype workflow for the entire 1st level analysis.
@@ -44,6 +45,7 @@ def task(directory, configuration_file):
         ValueError: If the configuration file has missing or invalid parameters.
 
     """
+    session = str(session)
     fsl.FSLCommand.set_default_output_type('NIFTI')
     subject = os.path.basename(directory)
     config = configparser.ConfigParser()
@@ -64,10 +66,10 @@ def task(directory, configuration_file):
     output_name = eval(config['Task']['output_name'])
 
     # Define base directory
-    base_dir = os.path.abspath(os.path.join(directory, 'analysis', output_name))
+    base_dir = os.path.abspath(os.path.join(directory, f"ses-{session}",'analysis', output_name))
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
-    out_dir = os.path.abspath(os.path.join(directory, 'output', output_name, sequence))
+    out_dir = os.path.abspath(os.path.join(directory, f"ses-{session}", 'output', output_name, sequence))
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -87,7 +89,7 @@ def task(directory, configuration_file):
         run_str = str(run)
         if runs > 1:
             sequence = sequence+run_str
-        ds = datasource(directory, sequence)
+        ds = datasource(directory, sequence, session)
         smoothed_task = create_smooth_despike_workflow(directory, sequence, base_dir, ds)
 
         cc = Node(interface=wrap.mCompCor(), name='mCompCor'+run_str)
@@ -157,22 +159,32 @@ def task(directory, configuration_file):
 
 if __name__ == '__main__':
     import sys
+    import os
     import shutil
     from utils import create_motion_file
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'dynface')	
-    #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/dynfaces_file.cfg')
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback1')
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback2')	
-    #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/efnback_file.cfg')
-    config_file = sys.argv[1]
-    sequence = sys.argv[2]
-    subject = sys.argv[3]
+    from task import task
     
-    if sequence == 'efnback':
-        create_motion_file(subject, 'efnback1')
-        create_motion_file(subject, 'efnback2')
+    # Define argument names and order
+    script_name, config_file, sequence_name, subject_path, session = sys.argv
+    
+    # Convert session to integer, set default value of 1
+    session = int(session) if session else 1
+    
+    # Call create_motion_file and task functions with the arguments
+    # Define a dictionary of sequence names and corresponding motion file creation calls
+    sequence_calls = {
+        'efnback': ['efnback1', 'efnback2'],
+        'reward': ['reward', 'reward'],
+    }
+
+    # Call create_motion_file with the appropriate arguments based on the sequence name
+    if sequence_name in sequence_calls:
+        for seq in sequence_calls[sequence_name]:
+            create_motion_file(os.path.abspath(subject_path), seq, session)
     else:
-        create_motion_file(os.path.abspath(subject), sequence)
-    df, base_dir = task(os.path.abspath(subject), os.path.abspath(config_file))
-    df.run(plugin='MultiProc', plugin_args={'n_procs' : 8})
+        create_motion_file(os.path.abspath(subject_path), sequence_name, session)
+
+    
+    df, base_dir = task(os.path.abspath(subject_path), os.path.abspath(config_file), session)
+    df.run(plugin='MultiProc', plugin_args={'n_procs': 8})
     shutil.rmtree(base_dir)

@@ -2,7 +2,7 @@
 
 # define a helper function to print usage information
 function usage() {
-    echo "Usage: $0 [-h] [-m MATLAB_PATH] config_file subject_path sequence_name"
+    echo "Usage: $0 [-h] [-m MATLAB_PATH] [-s SESSION] config_file subject_path sequence_name"
     echo "Runs a Python program called task.py with the specified inputs"
     echo "The 'task.py' script will run the entirety of the 1st levels"
     echo ""
@@ -14,7 +14,12 @@ function usage() {
     echo "Optional arguments:"
     echo "  -h, --help          Show this help message and exit"
     echo "  -m, --matlab-path   Path to the MATLAB executable (default: matlab)"
+    echo "  -s, --session       Session number (default: 1)"
 }
+
+# set default values
+matlab_path=""
+session=1
 
 # parse command line arguments
 if [ -d /usr/local/software/MATLAB/R2015a ];then
@@ -32,6 +37,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -m|--matlab-path)
             matlab_path="$2"
+            shift 2
+            ;;
+        -s|--session)
+            session="$2"
             shift 2
             ;;
         -*)
@@ -65,11 +74,16 @@ if ! command -v 3dDespike >/dev/null 2>&1; then
     export PATH=$PATH:/usr/local/software/afni/bin
 fi
 # Configure MATLABPATH
-export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/usr/local/software/ITAlics/matlab/PPPI:/usr/local/software/ITAlics/matlab/spm12
+export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/data/github/ITAlics/code/analysis/matlab/PPPI/:/usr/local/software/ITAlics/matlab/spm12
 
 # get the input arguments
 config_file=$1
 subject_path=$2
 sequence_name=$3
+echo $0
+
+# Add in path of bin
+# This is so the 'eprime2csv' script can be accessed by matlab for creating the design matrix
+export PATH=$PATH:/data/github/ITAlics/code/analysis/bin/
 # run the Python program
-echo python3 /data/github/ITAlics_Developmental/code/analysis/bin/task.py $config_file $sequence_name $subject_path
+python3 /data/github/ITAlics/code/analysis/bin/task.py $config_file $sequence_name $subject_path $session
