@@ -17,7 +17,13 @@ function usage() {
 }
 
 # parse command line arguments
-matlab_path="/usr/local/MATLAB/R2015a/bin/matlab"
+if [ -d /usr/local/software/MATLAB/R2015a ];then
+	matlab_path=/usr/local/software/MATLAB/R2015a/bin
+elif [ -d /usr/local/MATLAB/R2015a ];then
+	matlab_path=/usr/local/MATLAB/R2015a/bin
+else
+	echo "could not find MATLAB folder"
+fi
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
@@ -50,8 +56,8 @@ if ! python3 -c "import nipype" >/dev/null 2>&1 || \
 fi
 
 # add MATLAB to the PATH if it's not already there
-if ! command -v matlab >/dev/null 2>&1; then
-    export PATH=${matlab_path}:${PATH}
+if [[ ! $(command -v matlab >/dev/null 2>&1) || ! $(ls -la $(which matlab) | awk -F ' ' '{print $NF}') == *"R2015"* ]] ;then
+    	export PATH=${matlab_path}:${PATH}
 fi
 
 # add afni to the PATH if it's not already there
@@ -65,6 +71,5 @@ export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/usr/local/softw
 config_file=$1
 subject_path=$2
 sequence_name=$3
-
 # run the Python program
-python3 /data/github/ITAlics_Developmental/code/analysis/bin/task.py $config_file $sequence_name $subject_path
+echo python3 /data/github/ITAlics_Developmental/code/analysis/bin/task.py $config_file $sequence_name $subject_path
