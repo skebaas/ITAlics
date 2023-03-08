@@ -70,24 +70,26 @@ def load_design_matrix(mat_files, trim=0):
             durations = durations[0:-trim]
             onsets = onsets[0:-trim]
         bunch = Bunch(conditions=names,onsets=onsets,durations=durations)
-        # load pmod if it exists
         if 'pmod' in dm:
             pmod = []
-            for i in range(len(dm['pmod'])):
-                pmod_i = dm['pmod'][i]
-                if isinstance(pmod_i['name'], numpy.ndarray):
-                    # handle case where pmod has multiple entries
-                    names = [str(name) for name in pmod_i['name']]
-                    params = pmod_i['param'].tolist()
-                    polys = pmod_i['poly']
+            for i in range(0,len(dm.get('pmod'))):
+                if isinstance(dm['pmod']['name'][i],str) or dm['pmod']['name'][i].size == 1:
+                    name = str(dm['pmod']['name'][i])
+                    param = dm['pmod']['param'][i].tolist()
+                    poly = dm['pmod']['poly'][i]
+                    pmod.append(Bunch(name=[name],param=[param],poly=[poly]))
+                elif dm['pmod']['name'][i].size >  1:
+                    names = []
+                    params = []
+                    polys = []
+                    for j in range(0,dm['pmod']['name'][i].size):
+                        names.append(str(dm['pmod']['name'][i][j]))
+                        params.append(dm['pmod']['param'][i][j].tolist())
+                        polys.append(dm['pmod']['poly'][i][j])
+                    pmod.append(Bunch(name=names,param=params,poly=polys))
                 else:
-                    names = [str(pmod_i['name'])]
-                    params = [pmod_i['param'].tolist()]
-                    polys = [pmod_i['poly']]
-                pmod.append(Bunch(name=names, param=params, poly=polys))
+                    pmod.append(None)
             bunch.pmod = pmod
-        # create bunch to return
-        #bunch = Bunch(conditions=names, onsets=onsets, durations=durations, pmod=pmod)
         bunches.append(bunch)
     return bunches
 
@@ -142,7 +144,7 @@ def create_design_matrix(matlab_function, eprime_file, sequence):
 
     return mat
 
-def datasource(directory, sequence, session=1):
+def datasource(directory, sequence, session=1, BHV_struct='BHV*/Scan'):
     """
     This function creates a Nipype data source node that retrieves input data for a given subject and sequence.
     The input data includes functional and structural MRI scans, as well as task-specific behavior files and motion parameters.
@@ -151,6 +153,7 @@ def datasource(directory, sequence, session=1):
         directory (str): The base directory where the input data is stored.
         session (int): The session number that is being processed
         sequence (str): The sequence/task name for which input data needs to be retrieved.
+        BHV_struct (str): The structure of the BHV folder. Default='BHV*/Scan'
 
     Returns:
         A Nipype data source node that can be used as an input node in a Nipype pipeline.
@@ -164,10 +167,15 @@ def datasource(directory, sequence, session=1):
     # Define the output fields that need to be retrieved
     outfields = ['func', 'struct']
     
-    # Define the field template for functional and structural scans
-    field_template = dict(func=f"func/*{sequence}*preproc_bold.nii",
-                          struct=f"anat/*desc-preproc_T1w.nii*")
-    
+    # Define the field template for functional scans
+    field_template = dict(func=f"func/*{sequence}*preproc_bold.nii")
+
+    # Check first to see if subject has an 'anat' folder in its session folder
+    if gl.glob(os.path.join(base_dir,"anat", "*desc-preproc_T1w.nii*")):
+        field_template['struct'] = "anat/*desc-preproc_T1w.nii*"
+    else:
+        field_template['struct'] = "../anat/*_space-MNI152NLin6Asym_res-2_desc-preproc_T1w.nii*"
+
     # Define template arguments for functional and structural scans
     template_args = dict(func=[[]], struct=[[]])
 
@@ -182,12 +190,14 @@ def datasource(directory, sequence, session=1):
         behavior_files = {'reward1': 'Diamond_Reward*-1', 'reward2': 'Diamond_Reward*-2', 'efnback1': 'EFNBACK*-1', 'efnback2': 'EFNBACK*-2', 'dynface': 'subject*'}
         behavior_file = behavior_files.get(sequence, None)
         if behavior_file is not None:
-            if gl.glob(os.path.join(base_dir,"BHV*", "Scan", f"{behavior_file}.txt")):
-                field_template['behav'] = f"BHV*/Scan/{behavior_file}.txt"
+            ### add in additional folder below to include "Scan" for some studies ###
+            if gl.glob(os.path.join(base_dir,BHV_struct, f"{behavior_file}.txt")):
+                field_template['behav'] = f"{BHV_struct}/{behavior_file}.txt"
             else:
-                field_template['behav'] = f"../BHV*/Scan/{behavior_file}.txt"
+                field_template['behav'] = f"../{BHV_struct}/{behavior_file}.txt"
             template_args['behav'] = [[]]
             outfields.append('behav')
+            ##########################################################################
         else:
             print(f"No behavior file found for {sequence}... Exiting now...")
         field_template['mask_file'] = f"func/*{sequence}*brain_mask.nii"

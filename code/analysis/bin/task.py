@@ -64,6 +64,10 @@ def task(directory, configuration_file, session=1):
     ROIS = eval(config['Default']['ROIS'])
     PPI_ROIS = eval(config['Task']['PPI_ROIS'])
     output_name = eval(config['Task']['output_name'])
+    try: 
+        BHV_struct = eval(config['Task']['BHV_struct'])
+    except:
+        BHV_struct = 'BHV*/Scan'
 
     # Define base directory
     base_dir = os.path.abspath(os.path.join(directory, f"ses-{session}",'analysis', output_name))
@@ -89,7 +93,7 @@ def task(directory, configuration_file, session=1):
         run_str = str(run)
         if runs > 1:
             sequence = sequence+run_str
-        ds = datasource(directory, sequence, session)
+        ds = datasource(directory, sequence, session, BHV_struct)
         smoothed_task = create_smooth_despike_workflow(directory, sequence, base_dir, ds)
 
         cc = Node(interface=wrap.mCompCor(), name='mCompCor'+run_str)
