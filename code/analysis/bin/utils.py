@@ -184,22 +184,33 @@ def datasource(directory, sequence, session=1, BHV_struct='BHV*/Scan'):
         field_template.update(mask=f"anat/*space-MNI152NLin6Asym_res-2_desc-brain_mask.nii*",
                               confounds=f"func/*task-rest*desc-confounds*.tsv")
         outfields.extend(['mask', 'confounds'])
-    
+
     # If the sequence is a task-specific scan, add behavior files, mask file, and motion parameters to the output fields
-    elif sequence.startswith('reward') or sequence.startswith('efnback') or sequence.startswith('dynface'):
-        behavior_files = {'reward1': 'Diamond_Reward*-1', 'reward2': 'Diamond_Reward*-2', 'efnback1': 'EFNBACK*-1', 'efnback2': 'EFNBACK*-2', 'dynface': 'subject*'}
-        behavior_file = behavior_files.get(sequence, None)
-        if behavior_file is not None:
-            ### add in additional folder below to include "Scan" for some studies ###
-            if gl.glob(os.path.join(base_dir,BHV_struct, f"{behavior_file}.txt")):
-                field_template['behav'] = f"{BHV_struct}/{behavior_file}.txt"
+    elif sequence.startswith(('reward', 'efnback', 'dynface')):
+        behavior_files = {
+            'reward1': ['Diamond_Reward*-1.txt','Diamond_Reward*-3.txt'],
+            'reward2': ['Diamond_Reward*-2.txt','Diamond_Reward*-4.txt'],
+            'efnback1': ['EFNBACK*-1.txt'],
+            'efnback2': ['EFNBACK*-2.txt'],
+            'dynface': ['subject*.txt']
+        }
+        behavior_file_patterns = behavior_files.get(sequence)
+        for behavior_file_pattern in behavior_file_patterns:
+            behavior_file_path = os.path.join(base_dir, BHV_struct, behavior_file_pattern)
+            file_path = gl.glob(behavior_file_path)
+            print(behavior_file_path)
+            if len(file_path) == 0:
+                file_path += gl.glob(os.path.join(base_dir, '..', BHV_struct, behavior_file_pattern))
+                print(file_path)
+                if len(file_path) > 0:
+                    field_template['behav'] = f"../{BHV_struct}/{behavior_file_pattern}"
+                else:
+                    continue
             else:
-                field_template['behav'] = f"../{BHV_struct}/{behavior_file}.txt"
+                field_template['behav'] = f"{BHV_struct}/{behavior_file_pattern}"
             template_args['behav'] = [[]]
             outfields.append('behav')
-            ##########################################################################
-        else:
-            print(f"No behavior file found for {sequence}... Exiting now...")
+
         field_template['mask_file'] = f"func/*{sequence}*brain_mask.nii"
         template_args['mask_file'] = [[]]
         outfields.append('mask_file')
