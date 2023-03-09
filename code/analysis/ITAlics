@@ -84,4 +84,4 @@ export MATLABPATH=${script_dir}/matlab/embarc-2.0:${script_dir}/matlab/PPPI/:${s
 # This is so the 'eprime2csv' script can be accessed by matlab for creating the design matrix
 export PATH=$PATH:${script_dir}/bin/
 # run the Python program
-python3 /ix/mphillips/D2/github/ITAlics/code/analysis/bin/task.py $config_file $sequence_name $subject_path $session
+python3 ${script_dir}/bin/task.py $config_file $sequence_name $subject_path $session
