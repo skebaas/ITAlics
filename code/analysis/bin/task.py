@@ -80,22 +80,24 @@ def task(directory, configuration_file, session=1):
     task = Workflow(name=sequence, base_dir=base_dir)
     l1 = level1analysis(configuration_file)
     l1.inputs.input.contrasts = contrasts
+    #If there are multiple runs, set up merge points
     if runs > 1:
         # setup merge points
         merge_func = pe.Node(name="merge_func",interface=util.Merge(runs))
         merge_nDM = pe.Node(name="merge_nDM",interface=util.Merge(runs))
         merge_move = pe.Node(name="merge_movement",interface=util.Merge(runs))
         merge_regressors = pe.Node(name="merge_regressors",interface=util.Merge(runs))
-
+    #Loop over runs
     for run in range(1, runs+1):
         # Setup nodes to be used in Pipeline
         sequence = eval(config.get('Task', 'sequence'))
         run_str = str(run)
         if runs > 1:
             sequence = sequence+run_str
+        # Define datasource and smoothed task nodes
         ds = datasource(directory, sequence, session, BHV_struct)
         smoothed_task = create_smooth_despike_workflow(directory, sequence, base_dir, ds)
-
+        # Define mCompCor, create_DM, and connect nodes
         cc = Node(interface=wrap.mCompCor(), name='mCompCor'+run_str)
         cc.inputs.white_mask = ROIS['ROI_white']
 
@@ -178,7 +180,7 @@ if __name__ == '__main__':
     # Define a dictionary of sequence names and corresponding motion file creation calls
     sequence_calls = {
         'efnback': ['efnback1', 'efnback2'],
-        'reward': ['reward', 'reward'],
+        'reward': ['reward1', 'reward2'],
     }
 
     # Call create_motion_file with the appropriate arguments based on the sequence name
