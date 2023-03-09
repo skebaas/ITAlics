@@ -74,7 +74,7 @@ if ! command -v 3dDespike >/dev/null 2>&1; then
     export PATH=$PATH:/usr/local/software/afni/bin
 fi
 # Configure MATLABPATH
-export MATLABPATH=/data/github/ITAlics/code/analysis/matlab/embarc-2.0:/data/github/ITAlics/code/analysis/matlab/PPPI/:/data/github/ITAlics/data/spm12
+export MATLABPATH=/ix/mphillips/D2/github/ITAlics/code/analysis/matlab/embarc-2.0:/ix/mphillips/D2/github/ITAlics/code/analysis/matlab/PPPI/:/ix/mphillips/D2/github/ITAlics/data/spm12
 
 # get the input arguments
 config_file=$1
@@ -86,4 +86,4 @@ echo $0
 # This is so the 'eprime2csv' script can be accessed by matlab for creating the design matrix
 export PATH=$PATH:/data/github/ITAlics/code/analysis/bin/
 # run the Python program
-python3 /data/github/ITAlics/code/analysis/bin/task.py $config_file $sequence_name $subject_path $session
+python3 /ix/mphillips/D2/github/ITAlics/code/analysis/bin/task.py $config_file $sequence_name $subject_path $session
