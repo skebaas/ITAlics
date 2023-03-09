@@ -52,16 +52,20 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
+# get the input arguments
+config_file=$1
+subject_path=$2
+sequence_name=$3
+script_dir=$(dirname $(readlink -f $0))
 # check for nipype, pandas, and configparser Python modules
-if ! python3 -c "import nipype" >/dev/null 2>&1 || \
+if ! python3 -c "import nipype; exit(nipype.__version__ != '1.8.5')" 2>&1 || \
    ! python3 -c "import pandas" >/dev/null 2>&1 || \
    ! python3 -c "import chardet" >/dev/null 2>&1 || \
    ! python3 -c "import networkx; exit(networkx.__version__ != '2.5')" 2>&1 || \
    ! python3 -c "import configparser" >/dev/null 2>&1; then
     echo "WARNING: Python modules nipype, pandas, and configparser are required"
     echo "Installing now!"
-    python3 -u -m pip install nipype pandas configparser chardet networkx==2.5
+    python3 -u -m pip install nipype==1.8.5 pandas configparser chardet networkx==2.5
 fi
 
 # add MATLAB to the PATH if it's not already there
@@ -74,16 +78,10 @@ if ! command -v 3dDespike >/dev/null 2>&1; then
     export PATH=$PATH:/usr/local/software/afni/bin
 fi
 # Configure MATLABPATH
-export MATLABPATH=/ix/mphillips/D2/github/ITAlics/code/analysis/matlab/embarc-2.0:/ix/mphillips/D2/github/ITAlics/code/analysis/matlab/PPPI/:/ix/mphillips/D2/github/ITAlics/data/spm12
-
-# get the input arguments
-config_file=$1
-subject_path=$2
-sequence_name=$3
-echo $0
+export MATLABPATH=${script_dir}/matlab/embarc-2.0:${script_dir}/matlab/PPPI/:${script_dir}/../../data/spm12
 
 # Add in path of bin
 # This is so the 'eprime2csv' script can be accessed by matlab for creating the design matrix
-export PATH=$PATH:/data/github/ITAlics/code/analysis/bin/
+export PATH=$PATH:${script_dir}/bin/
 # run the Python program
 python3 /ix/mphillips/D2/github/ITAlics/code/analysis/bin/task.py $config_file $sequence_name $subject_path $session
