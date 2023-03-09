@@ -74,7 +74,7 @@ if ! command -v 3dDespike >/dev/null 2>&1; then
     export PATH=$PATH:/usr/local/software/afni/bin
 fi
 # Configure MATLABPATH
-export MATLABPATH=/usr/local/software/ITAlics/matlab/embarc-2.0:/data/github/ITAlics/code/analysis/matlab/PPPI/:/data/github/ITAlics/data/spm12
+export MATLABPATH=/data/github/ITAlics/code/analysis/matlab/embarc-2.0:/data/github/ITAlics/code/analysis/matlab/PPPI/:/data/github/ITAlics/data/spm12
 
 # get the input arguments
 config_file=$1
