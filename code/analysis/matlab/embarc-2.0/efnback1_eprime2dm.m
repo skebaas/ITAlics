@@ -12,6 +12,7 @@ names = {'zeroblank';'zeroneutral';'zerofear';'zerohappy';'twoblank';
 durations = cell(length(names),1);
 durations(1:length(names)) = {4}; % hard -coded for now to 4s
 onsets = cell(length(names),1);
+accuracy = cell(length(names),1); %%%AS/TB%%%
 instructions = zeros(1,ep.LogFrame.Level3.N);
 %instructions = {0;52;104;156;208;260;312;364};
 error = [];
@@ -23,6 +24,7 @@ for i=1:ep.LogFrame.Level3.N
     face = ep.LogFrame.Level3.PicList{i};
     back = ep.LogFrame.Level3.ListType{i};
     code = ep.LogFrame.Level3.LetList{i};
+    fprintf('\n')
     
     % construct name
     nm = '';
@@ -42,6 +44,7 @@ for i=1:ep.LogFrame.Level3.N
     end
     
     % save in map
+
     map.(code).name = nm;
     map.(code).ready = str2double(ep.LogFrame.Level3.GetReady_OnsetTime{i});
     map.(code).onsets = {};
@@ -67,6 +70,17 @@ for i=1:n
 	% maybe need to use the first ready?        
 	onset = str2double(ep.LogFrame.Level4.Slide3_OnsetTime{i});
         onset = double(round((onset - ready)/1000));
+%%%AS/TB%%% Start 
+        acc = str2double(ep.LogFrame.Level4.Slide3_ACC{i})
+        rt = str2double(ep.LogFrame.Level4.Slide3_RT{i})
+        try
+            map.(code).accuracy;
+        catch
+            map.(code).accuracy = {};
+        end
+        map.(code).accuracy{end+1} = acc; 
+
+%%%AS/TB%%% End
 	if str2double(ep.LogFrame.Level4.Slide3_ACC{i}) == 1
             map.(code).onsets{end+1} = onset;
         else
@@ -81,6 +95,7 @@ for i=1:8
     for j=1:length(codes)
         if strcmp(names{i},map.(codes{j}).name)
             onsets{i} = cell2mat(map.(codes{j}).onsets);
+            accuracy{i} = cell2mat(map.(codes{j}).accuracy); %%%AS/TB%%%
             break;
         end
     end
@@ -100,7 +115,10 @@ if ~isempty(path)
 	path = [path '/'];
 end
 ndm_file = [path 'nDM_efnback1_' subject '.mat'];
+accuracy_file = [path 'acc_efnback1_' subject '.mat']; %%%AS/TB%%%
+save(accuracy_file, 'names', 'accuracy');%%%AS/TB%%%
 save(ndm_file,'names','onsets','durations');
+
 
 % check if low accuracy (<75%)
 if length(error) > n*.25
