@@ -13,7 +13,7 @@ from workflows import create_smooth_despike_workflow, level1analysis
 from utils import load_design_matrix, create_design_matrix, datasource 
 import wrappers as wrap
 
-def task(directory, configuration_file):
+def task(directory, configuration_file, session=1):
     """
     This function defines a workflow for a neuroimaging task using the Nipype package in Python. 
     The function takes two arguments: the directory where the data is stored and a configuration 
@@ -34,6 +34,7 @@ def task(directory, configuration_file):
     Parameters:
         directory (str): A string with the path to the directory containing the data.
         configuration_file (str): A string with the path to the configuration file.
+        session (int): Session number to be processed. Default=1
 
     Returns:
         task (pe.Workflow): The Nipype workflow for the entire 1st level analysis.
@@ -44,6 +45,7 @@ def task(directory, configuration_file):
         ValueError: If the configuration file has missing or invalid parameters.
 
     """
+    session = str(session)
     fsl.FSLCommand.set_default_output_type('NIFTI')
     subject = os.path.basename(directory)
     config = configparser.ConfigParser()
@@ -62,37 +64,40 @@ def task(directory, configuration_file):
     ROIS = eval(config['Default']['ROIS'])
     PPI_ROIS = eval(config['Task']['PPI_ROIS'])
     output_name = eval(config['Task']['output_name'])
+    try: 
+        BHV_struct = eval(config['Task']['BHV_struct'])
+    except:
+        BHV_struct = 'BHV*/Scan'
 
     # Define base directory
-    base_dir = os.path.abspath(os.path.join(directory, 'analysis', output_name))
+    base_dir = os.path.abspath(os.path.join(directory, f"ses-{session}",'analysis', output_name))
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
-    out_dir = os.path.abspath(os.path.join(directory, 'output', output_name, sequence))
+    out_dir = os.path.abspath(os.path.join(directory, f"ses-{session}", 'output', output_name, sequence))
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     task = Workflow(name=sequence, base_dir=base_dir)
     l1 = level1analysis(configuration_file)
     l1.inputs.input.contrasts = contrasts
-    # Define datasink
-    datasink = Node(interface=DataSink(), name='datasink')
-    datasink.inputs.base_directory = out_dir
+    #If there are multiple runs, set up merge points
     if runs > 1:
         # setup merge points
         merge_func = pe.Node(name="merge_func",interface=util.Merge(runs))
         merge_nDM = pe.Node(name="merge_nDM",interface=util.Merge(runs))
         merge_move = pe.Node(name="merge_movement",interface=util.Merge(runs))
         merge_regressors = pe.Node(name="merge_regressors",interface=util.Merge(runs))
-
+    #Loop over runs
     for run in range(1, runs+1):
         # Setup nodes to be used in Pipeline
         sequence = eval(config.get('Task', 'sequence'))
         run_str = str(run)
         if runs > 1:
             sequence = sequence+run_str
-        ds = datasource(directory, sequence)
+        # Define datasource and smoothed task nodes
+        ds = datasource(directory, sequence, session, BHV_struct)
         smoothed_task = create_smooth_despike_workflow(directory, sequence, base_dir, ds)
-
+        # Define mCompCor, create_DM, and connect nodes
         cc = Node(interface=wrap.mCompCor(), name='mCompCor'+run_str)
         cc.inputs.white_mask = ROIS['ROI_white']
 
@@ -119,14 +124,16 @@ def task(directory, configuration_file):
             task.connect(smoothed_task,'output.func',merge_func,f'in{run_str}')
             task.connect(smoothed_task,'output.movement',merge_move,f'in{run_str}')
             task.connect(dm,'design_matrix',merge_nDM,f'in{run_str}')
-            task.connect(smoothed_task, 'output.func', datasink,f"smoothed_images.@func_{sequence}")
-            task.connect(smoothed_task, 'output.movement', datasink,f"smoothed_images.@movement_{sequence}")
 
     if runs > 1:
         task.connect([(merge_func, l1, [('out', 'input.func')]),
                     (merge_nDM, l1, [('out', 'input.design_matrix')]),
                     (merge_regressors, l1, [('out', 'input.movement')]),
                     (smoothed_task, l1, [('output.mask', 'input.mask')])])
+    
+    # Define datasink
+    datasink = Node(interface=DataSink(), name='datasink')
+    datasink.inputs.base_directory = out_dir
 
     for roi in PPI_ROIS:
         # define PPPI for each ROI
@@ -146,7 +153,7 @@ def task(directory, configuration_file):
 
         # output con images to datasink
         task.connect(contrast,'con_images',datasink,"gPPI.pppi_"+roi[0]+".@_con_images")
-        task.connect(pppi,'beta_images',datasink,"gPPI.pppi_"+roi[0]+".@_beta_images")
+        task.connect(pppi,'beta_images',datasink,"gPPI.pppi_"+roi[0]+".@_beta_images") 
         task.connect(pppi,'residual_image',datasink,"gPPI.pppi_"+roi[0]+".@_residual_image")
         task.connect(contrast,"spm_mat_file",datasink,"gPPI.pppi_"+roi[0]+".@_spm_file")
         task.connect(contrast,"spmT_images",datasink,"gPPI.pppi_"+roi[0]+".@_spmT_images")
@@ -160,22 +167,32 @@ def task(directory, configuration_file):
 
 if __name__ == '__main__':
     import sys
+    import os
     import shutil
     from utils import create_motion_file
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'dynface')	
-    #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/dynfaces_file.cfg')
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback1')
-    #create_motion_file('/data/github/ITAlics_Developmental/data/sub-50225/', 'efnback2')	
-    #df = task('/data/github/ITAlics_Developmental/data/sub-50225/', '/data/github/ITAlics_Developmental/code/analysis/bin/efnback_file.cfg')
-    config_file = sys.argv[1]
-    sequence = sys.argv[2]
-    subject = sys.argv[3]
+    from task import task
     
-    if sequence == 'efnback':
-        create_motion_file(subject, 'efnback1')
-        create_motion_file(subject, 'efnback2')
+    # Define argument names and order
+    script_name, config_file, sequence_name, subject_path, session = sys.argv
+    
+    # Convert session to integer, set default value of 1
+    session = int(session) if session else 1
+    
+    # Call create_motion_file and task functions with the arguments
+    # Define a dictionary of sequence names and corresponding motion file creation calls
+    sequence_calls = {
+        'efnback': ['efnback1', 'efnback2'],
+        'reward': ['reward1', 'reward2'],
+    }
+
+    # Call create_motion_file with the appropriate arguments based on the sequence name
+    if sequence_name in sequence_calls:
+        for seq in sequence_calls[sequence_name]:
+            create_motion_file(os.path.abspath(subject_path), seq, session)
     else:
-        create_motion_file(os.path.abspath(subject), sequence)
-    df, base_dir = task(os.path.abspath(subject), os.path.abspath(config_file))
-    df.run(plugin='MultiProc', plugin_args={'n_procs' : 8})
+        create_motion_file(os.path.abspath(subject_path), sequence_name, session)
+
+    
+    df, base_dir = task(os.path.abspath(subject_path), os.path.abspath(config_file), session)
+    df.run(plugin='MultiProc', plugin_args={'n_procs': 8})
     shutil.rmtree(base_dir)
