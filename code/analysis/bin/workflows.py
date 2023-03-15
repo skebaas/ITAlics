@@ -119,9 +119,10 @@ def level1analysis(configuration_file, name='level1'):
     l1analysis.connect(level1estimate,'beta_images',contrastestimate,'beta_images'),
     l1analysis.connect(level1estimate,'residual_image',contrastestimate,'residual_image')
     # output
-    outputnode = pe.Node(interface=util.IdentityInterface(fields=['spm_mat_file', 'spm_mat_file_con','con_images', 'spmT_images', 'residual_image','beta_images']), name='output')
+    outputnode = pe.Node(interface=util.IdentityInterface(fields=['spm_mat_file', 'spm_mat_file_con','con_images', 'spmT_images', 'residual_image','beta_images', 'residual_image']), name='output')
     l1analysis.connect(level1estimate,'spm_mat_file',outputnode,'spm_mat_file')
     l1analysis.connect(level1estimate,'beta_images',outputnode,'beta_images')
+    l1analysis.connect(level1estimate,'residual_image',outputnode,'residual_image')
     l1analysis.connect(contrastestimate,'spm_mat_file',outputnode,'spm_mat_file_con')
     l1analysis.connect(contrastestimate,'con_images',outputnode,'con_images')
     l1analysis.connect(contrastestimate,'spmT_images',outputnode,'spmT_images')

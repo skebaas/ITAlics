@@ -1,6 +1,6 @@
 # Neuroimaging  1st Levels Workflow using Nipype
 
-This Python script is used to define a workflow for a neuroimaging task using the Nipype package in Python. The script takes three arguments: a configuration file specifying the details of the task, the name of the task you are using, and the directory where the data is stored.
+The bash script at code/analysis/ITAlics is used to call on code/analysis/bin/task.py which defines a workflow for a neuroimaging task using the Nipype package in Python. The script takes three arguments: a configuration file specifying the details of the task, the name of the task you are using, and the directory where the data is stored.
 
 The script sets up a Nipype workflow object with a base directory, and sets up the first level analysis node with the specified contrasts. If there are multiple runs, the script sets up merge points for the functional data, design matrices, movement data, and regressors.
 
