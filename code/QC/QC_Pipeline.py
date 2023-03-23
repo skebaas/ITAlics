@@ -6,41 +6,55 @@ import pandas as pd
 import glob
 class Task_DataFrame:
     """
-    This class is used to generate various metrics and tables for a given task and fmriprep directory. 
+    Initialize the class with the given task and fMRI preprocessing directory.
 
-    Methods:
-    make_directory(folder):
-        creates a directory if it does not exist
-    get_file_info(file):
-        takes in a path to a confound regressors file and returns the subject name and task name
-    pull_confounds(tsv, output_path, confounds=['trans_x', 'trans_y', 'trans_z', 'rot_x', 'rot_y', 'rot_z', 'framewise_displacement']):
-        extracts specified regressors from tsv and outputs a motion.tsv to output_path
-    generate_metrics(tsv, confounds_df, output_path):
-        generates various metrics for the columns in confounds_df and outputs the metrics to output_path
-    generate_mean_max(fmriprep_dir, task):
-        generates mean and max values for the confounds in each subject and returns a dataframe
-    flag_exclusion_val(df, exclusion_val, metric='mean'):
-        highlights values in df that are greater than exclusion_val for the given metric
-    percent_coverage(atlas, atlas_txt):
-        generates a dataframe showing the percentage of voxels found compared to the maximum possible count found in each ROI for all subjects with the specified task_name in the fmriprep_dir
-    output_low_coverage(exclusion_val):
-        highlights values in percent_coverage_table that are less than exclusion_val
+    This method initializes the class with a specified task and the directory
+    containing fMRI preprocessing outputs. It computes various dataframes
+    related to mean and max framewise displacement and translation values, as well
+    as the number of excluded mean and max values. It also initializes variables
+    for percent coverage tables.
 
-    Attributes:
-    task (str): the name of the task
-    fmriprep_dir (str): the path to the fmriprep directory
-    task_df (DataFrame): the mean and max values for each subject's confounds
-    mean_highlighted (DataFrame): the mean values greater than 0.7
-    max_highlighted (DataFrame): the max values greater than 5
-    mean_table (DataFrame): the mean values for the confounds greater than 0.5
-    max_table (DataFrame): the max values for the confounds greater than 5
-    max_table_highlighted (DataFrame): the max values greater than 5, highlighted in red
-    mean_table_highlighted (DataFrame): the mean values greater than 0.5, highlighted in red
-    mean_excluded (int): the number of subjects excluded based on mean values
-    max_excluded (int): the number of subjects excluded based on max values
-    percent_coverage_table (DataFrame): the percent coverage of each ROI for all subjects
-    percent_coverage_highlighted (DataFrame): the percent coverage of each ROI for all subjects, highlighted in red for values less than a specified exclusion value
+    Parameters
+    ----------
+    task : str
+        The task identifier (e.g., 'rest', 'emotion', etc.).
+    fmriprep_dir : str
+        The path to the directory containing the fMRI preprocessing outputs.
+
+    Attributes
+    ----------
+    task : str
+        The task identifier.
+    fmriprep_dir : str
+        The path to the directory containing the fMRI preprocessing outputs.
+    task_df : pd.DataFrame
+        The dataframe containing mean and max values for the given task.
+    mean_highlighted : pd.DataFrame
+        Mean values flagged for exclusion (greater than 0.7).
+    max_highlighted : pd.DataFrame
+        Max values flagged for exclusion (greater than 5).
+    mean_table : pd.DataFrame
+        Table of mean values filtered based on specified thresholds.
+    max_table : pd.DataFrame
+        Table of max values filtered based on specified thresholds.
+    max_table_highlighted : pd.DataFrame
+        Highlighted max values in the max_table flagged for exclusion.
+    mean_table_highlighted : pd.DataFrame
+        Highlighted mean values in the mean_table flagged for exclusion.
+    mean_excluded : int
+        The number of mean values excluded based on the specified thresholds.
+    max_excluded : int
+        The number of max values excluded based on the specified thresholds.
+    percent_coverage_table : str
+        An empty string to store the percent coverage table information later.
+    percent_coverage_highlighted : str
+        An empty string to store the highlighted percent coverage information later.
+
+    Example
+    -------
+    >>> my_data_frame = Task_DataFrame("rest", "/path/to/fmriprep/outputs")
     """
+
     def __init__(self, task, fmriprep_dir):
         self.task = task
         self.fmriprep_dir = fmriprep_dir
@@ -135,6 +149,7 @@ class Task_DataFrame:
                 confound_dict[f'{col}_max'] = confounds_metrics[col]['max']
             subject_dict[sub_name] = confound_dict
         data = pd.DataFrame(subject_dict).T
+        data.sort_index(inplace=True)
         return data
 
     def flag_exclusion_val(self, df, exclusion_val, metric='mean'):
@@ -260,3 +275,15 @@ class Task_DataFrame:
             return 'background-color: % s' % color
         self.percent_coverage_highlighted = self.percent_coverage_table.style.applymap(highlight_cols)
         return self.percent_coverage_table.style.applymap(highlight_cols)
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Create an instance of Task_DataFrame with the given task and fmriprep directory.')
+
+    parser.add_argument('task', type=str, help='The task identifier (e.g., "rest", "efnback1", "reward2", "dynface", etc.)')
+    parser.add_argument('fmriprep_dir', type=str, help='The path to the directory containing the fMRI preprocessing outputs.')
+
+    args = parser.parse_args()
+    print(args.fmriprep_dir)
+    df_class = Task_DataFrame(args.task, args.fmriprep_dir)
+    df_class.task_df.to_csv(f'{args.task}_motion.csv')
