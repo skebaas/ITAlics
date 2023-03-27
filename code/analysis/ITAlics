@@ -68,16 +68,29 @@ if ! python3 -c "import nipype; exit(nipype.__version__ != '1.8.5')" 2>&1 || \
     python3 -u -m pip install nipype==1.8.5 pandas configparser chardet networkx==2.5
 fi
 
-# add MATLAB to the PATH if it's not already there
-if [[ ! $(command -v matlab >/dev/null 2>&1) || ! $(ls -la $(which matlab) | awk -F ' ' '{print $NF}') == *"R2015"* ]] ;then
-    	export PATH=${matlab_path}:${PATH}
+# add MATLAB R2015a to the PATH if it's not already there.
+# It MUST be this version of Matlab, as the SPM12 toolbox is not compatible with newer versions
+if ! command -v matlab >/dev/null 2>&1; then
+    if [ -z "$matlab_path" ]; then
+        echo "Error: MATLAB not found in PATH"
+        echo "Try running with the -m option to specify the path to the MATLAB executable"
+        exit 1
+    else
+        export PATH=$PATH:$matlab_path
+    fi
+fi
+# Check version of MATLAB that is being used. It MUST be R2015a
+if ! matlab -nodisplay -nosplash -nodesktop -r "ver; exit" | grep -q "R2015a"; then
+    echo "Error: MATLAB version must be R2015a"
+    exit 1
 fi
 
 # add afni to the PATH if it's not already there
 if ! command -v 3dDespike >/dev/null 2>&1; then
     export PATH=$PATH:/usr/local/software/afni/bin
 fi
-# Configure MATLABPATH
+# Set default MATLABPATH variable
+# This is so the 'embarc' and 'PPPI' scripts can be accessed by matlab for creating the design matrix
 export MATLABPATH=${script_dir}/matlab/embarc-2.0:${script_dir}/matlab/PPPI/:${script_dir}/../../data/spm12
 
 # Add in path of bin
