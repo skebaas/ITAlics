@@ -59,7 +59,7 @@ if ! python3 -c "import nipype; exit(nipype.__version__ != '1.8.5')" 2>&1 || \
     echo "Installing now!"
     python3 -u -m pip3 install nipype==1.8.5 pandas configparser chardet networkx==2.5
 fi
-
+echo "Test"
 
 # add afni to the PATH if it's not already there
 if ! command -v 3dDespike >/dev/null 2>&1; then
