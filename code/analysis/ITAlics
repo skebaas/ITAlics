@@ -16,19 +16,11 @@ function usage() {
     echo "  -m, --matlab-path   Path to the MATLAB executable (default: matlab)"
     echo "  -s, --session       Session number (default: 1)"
 }
-
+module load matlab/R2015a
 # set default values
 matlab_path=""
 session=1
 
-# parse command line arguments
-if [ -d /usr/local/software/MATLAB/R2015a ];then
-	matlab_path=/usr/local/software/MATLAB/R2015a/bin
-elif [ -d /usr/local/MATLAB/R2015a ];then
-	matlab_path=/usr/local/MATLAB/R2015a/bin
-else
-	echo "could not find MATLAB folder"
-fi
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
@@ -65,25 +57,9 @@ if ! python3 -c "import nipype; exit(nipype.__version__ != '1.8.5')" 2>&1 || \
    ! python3 -c "import configparser" >/dev/null 2>&1; then
     echo "WARNING: Python modules nipype, pandas, and configparser are required"
     echo "Installing now!"
-    python3 -u -m pip install nipype==1.8.5 pandas configparser chardet networkx==2.5
+    python3 -u -m pip3 install nipype==1.8.5 pandas configparser chardet networkx==2.5
 fi
 
-# add MATLAB R2015a to the PATH if it's not already there.
-# It MUST be this version of Matlab, as the SPM12 toolbox is not compatible with newer versions
-if ! command -v matlab >/dev/null 2>&1; then
-    if [ -z "$matlab_path" ]; then
-        echo "Error: MATLAB not found in PATH"
-        echo "Try running with the -m option to specify the path to the MATLAB executable"
-        exit 1
-    else
-        export PATH=$PATH:$matlab_path
-    fi
-fi
-# Check version of MATLAB that is being used. It MUST be R2015a
-if ! matlab -nodisplay -nosplash -nodesktop -r "ver; exit" | grep -q "R2015a"; then
-    echo "Error: MATLAB version must be R2015a"
-    exit 1
-fi
 
 # add afni to the PATH if it's not already there
 if ! command -v 3dDespike >/dev/null 2>&1; then
@@ -97,4 +73,4 @@ export MATLABPATH=${script_dir}/matlab/embarc-2.0:${script_dir}/matlab/PPPI/:${s
 # This is so the 'eprime2csv' script can be accessed by matlab for creating the design matrix
 export PATH=$PATH:${script_dir}/bin/
 # run the Python program
-python3 ${script_dir}/bin/task.py $config_file $sequence_name $subject_path $session
+python3 ${script_dir}/bin/task_encore_temp.py $config_file $sequence_name $subject_path $session
